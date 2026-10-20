@@ -49,6 +49,136 @@ pub struct Runtime {
     federation: Option<crate::federation::Federation>,
     stopping: Arc<std::sync::atomic::AtomicBool>,
 }
+/// Keep upload services separate: their HTTP hosts, mounts and credentials belong
+/// to the component, while all listeners share one dispatcher.
+#[derive(Clone)]
+struct UploadRoute {
+    name: String,
+    config: crate::http_config::HttpConfig,
+    service: crate::http_service::UploadService,
+}
+pub(crate) fn upload_backend(
+    config: &Config,
+    name: &str,
+) -> Result<crate::object_store::UploadBackendConfig> {
+    use crate::object_store::{S3Config, UploadBackendConfig};
+    let backend = config
+        .option(name, "http_file_share_backend")
+        .map(|value| {
+            value
+                .as_str()
+                .context("http_file_share_backend must be a string")
+        })
+        .transpose()?
+        .unwrap_or("local");
+    match backend {
+        "local" => Ok(UploadBackendConfig::Local),
+        "s3" => {
+            let options = config
+                .option(name, "http_file_share_s3")
+                .and_then(|value| value.as_object())
+                .context("http_file_share_s3 must be a table for S3 uploads")?;
+            let field = |key: &str| -> Result<Option<String>> {
+                if let Some(value) = options.get(&format!("{key}_env")) {
+                    let variable = value.as_str().with_context(|| {
+                        format!("http_file_share_s3.{key}_env must be a string")
+                    })?;
+                    return Ok(Some(std::env::var(variable).with_context(|| {
+                        format!("environment variable for http_file_share_s3.{key} is unavailable")
+                    })?));
+                }
+                options
+                    .get(key)
+                    .map(|value| {
+                        value
+                            .as_str()
+                            .map(str::to_owned)
+                            .with_context(|| format!("http_file_share_s3.{key} must be a string"))
+                    })
+                    .transpose()
+            };
+            let required = |key: &str| {
+                field(key)?
+                    .filter(|value| !value.is_empty())
+                    .with_context(|| format!("http_file_share_s3.{key} is required"))
+            };
+            Ok(UploadBackendConfig::S3(S3Config {
+                endpoint: required("endpoint")?,
+                bucket: required("bucket")?,
+                region: required("region")?,
+                access_key: required("access_key")?,
+                secret_key: required("secret_key")?,
+                session_token: field("session_token")?,
+                key_prefix: field("key_prefix")?.unwrap_or_default(),
+            }))
+        }
+        other => bail!("unsupported http_file_share_backend: {other}"),
+    }
+}
+fn upload_mount_matches(mount: &str, path: &str) -> bool {
+    mount == "/"
+        || path == mount
+        || path
+            .strip_prefix(mount)
+            .is_some_and(|rest| rest.starts_with('/'))
+}
+fn upload_routes(
+    config: &Config,
+    uploads: &BTreeMap<String, crate::http_service::UploadService>,
+) -> Result<Arc<Vec<UploadRoute>>> {
+    let mut routes: Vec<UploadRoute> = Vec::new();
+    for (name, service) in uploads {
+        let http = crate::http_config::HttpConfig::for_host(config, name)?;
+        for existing in &routes {
+            ensure!(
+                existing.config.host != http.host
+                    || !(upload_mount_matches(
+                        &existing.config.file_share_path,
+                        &http.file_share_path
+                    ) || upload_mount_matches(
+                        &http.file_share_path,
+                        &existing.config.file_share_path
+                    )),
+                "ambiguous HTTP upload components '{}' and '{}': HTTP host '{}' has overlapping mounts '{}' and '{}'",
+                existing.name,
+                name,
+                http.host,
+                existing.config.file_share_path,
+                http.file_share_path
+            );
+        }
+        routes.push(UploadRoute {
+            name: name.clone(),
+            config: http,
+            service: service.clone(),
+        });
+    }
+    Ok(Arc::new(routes))
+}
+async fn dispatch_upload(
+    routes: Arc<Vec<UploadRoute>>,
+    request: axum::extract::Request,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    let host = request
+        .headers()
+        .get(axum::http::header::HOST)
+        .and_then(|value| value.to_str().ok());
+    if let Some(route) = routes.iter().find(|route| {
+        host.is_some_and(|host| route.config.accepts_host(host))
+            && upload_mount_matches(&route.config.file_share_path, request.uri().path())
+    }) {
+        let mut response = route
+            .service
+            .handle_at(request, &route.config.file_share_path)
+            .await;
+        response
+            .extensions_mut()
+            .insert(crate::http_transport::HttpRoute::Upload);
+        return response;
+    }
+    axum::http::StatusCode::NOT_FOUND.into_response()
+}
 struct ConnectionLog {
     logger: Logger,
     id: String,
@@ -557,6 +687,7 @@ pub async fn serve(path: &Path) -> Result<()> {
 
     let (data, _, hash) = account_config(path)?;
     let data_guard = Arc::new(crate::data_lock::DataDirectoryGuard::acquire(&data)?);
+    crate::upload_migration::ensure_no_pending(&data)?;
     let ssl = c.option(&domain, "ssl").context("ssl required")?;
     let cert = ssl
         .get("certificate")
@@ -630,8 +761,8 @@ pub async fn serve(path: &Path) -> Result<()> {
                     .and_then(|v| v.as_str())
                     .map(|s| s.trim_end_matches('/').to_owned())
                     .unwrap_or(base);
-                let service =
-                    crate::http_service::UploadService::new(crate::http_service::UploadConfig {
+                let service = crate::http_service::UploadService::new_with_backend(
+                    crate::http_service::UploadConfig {
                         root: data.clone(),
                         host: name.clone(),
                         base_url: base,
@@ -667,17 +798,30 @@ pub async fn serve(path: &Path) -> Result<()> {
                             .option(name, "http_file_share_secret")
                             .and_then(|v| v.as_str())
                             .map(str::to_owned),
-                    })?;
+                    },
+                    upload_backend(&c, name)?,
+                )?;
+                service.recover_backend().await?;
+                for slot in service.quarantined_slots() {
+                    logger.event(
+                        Level::Warn,
+                        "upload",
+                        None,
+                        "completion-quarantined",
+                        &[
+                            ("component", name),
+                            ("slot", &slot),
+                            ("reason", "remote-completion-outcome-uncertain"),
+                        ],
+                    );
+                }
                 uploads.insert(name.clone(), service);
             }
             Some("pubsub") | None => {}
             Some(other) => bail!("component not integrated: {other}"),
         }
     }
-    ensure!(
-        uploads.len() <= 1,
-        "multiple HTTP upload components not yet integrated"
-    );
+    let upload_routes = upload_routes(&c, &uploads)?;
     let runtime = Runtime {
         _data_guard: data_guard,
         domain: domain.clone(),
@@ -892,31 +1036,11 @@ pub async fn serve(path: &Path) -> Result<()> {
                 })
             };
             let http_config = crate::http_config::HttpConfig::for_host(&c, &domain)?;
-            let fallback = if let Some((name, service)) = runtime.uploads.iter().next() {
-                let config = crate::http_config::HttpConfig::for_host(&c, name)?;
-                service
-                    .router_at(&config.file_share_path)?
-                    .layer(axum::middleware::from_fn(
-                        move |req: axum::extract::Request, next: axum::middleware::Next| {
-                            let accepted = req
-                                .headers()
-                                .get(axum::http::header::HOST)
-                                .and_then(|v| v.to_str().ok())
-                                .is_some_and(|h| config.accepts_host(h));
-                            async move {
-                                if accepted {
-                                    next.run(req).await
-                                } else {
-                                    axum::response::IntoResponse::into_response(
-                                        axum::http::StatusCode::NOT_FOUND,
-                                    )
-                                }
-                            }
-                        },
-                    ))
-            } else {
-                axum::Router::new()
-            };
+            let routes = upload_routes.clone();
+            let fallback = axum::Router::new().fallback(move |request: axum::extract::Request| {
+                let routes = routes.clone();
+                async move { dispatch_upload(routes, request).await }
+            });
             let app = crate::http_transport::configured_router_with_fallback(
                 handler,
                 http_config,

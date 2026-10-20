@@ -1,0 +1,1 @@
+PASS upload migration: local -> S3 -> S3 -> local, hashes, original URLs/JWT/HEAD, lock, dry-run, fail-closed resume

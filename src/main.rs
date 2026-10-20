@@ -12,6 +12,19 @@ async fn main() {
 async fn run() -> Result<()> {
     let args: Vec<_> = env::args().skip(1).collect();
     match args.first().map(String::as_str) {
+        Some("upload-migrate") if args.len() == 5 || args.len() == 6 => {
+            anyhow::ensure!(
+                args[3] == "--component" && (args.len() == 5 || args[5] == "--execute"),
+                "usage: upload-migrate OLD_CONFIG NEW_CONFIG --component HOST [--execute]"
+            );
+            rust_xmpp::upload_migration::migrate(
+                Path::new(&args[1]),
+                Path::new(&args[2]),
+                &args[4],
+                args.len() == 6,
+            )
+            .await?;
+        }
         Some("check") => {
             let path = args
                 .get(1)
@@ -108,7 +121,7 @@ async fn run() -> Result<()> {
             println!("Account created: {}@{}", args[2], domain);
         }
         Some("--help") | None => println!(
-            "rust-xmpp check-config PATH\nrust-xmpp convert PATH json|yaml|toml OUTPUT\nrust-xmpp --version\n\nExperimental runtime: serve CONFIG --experimental\ncreate-user CONFIG USER --password-stdin\ncheck [CONFIG] (running server healthcheck)\nshell CONFIG COMMAND\n\nSTARTTLS, SCRAM/PLAIN, local messaging, roster, MAM, MUC, PEP/pubsub, stream management, push, federation and HTTP transports are implemented with limitations; see docs/COMPATIBILITY.md."
+            "rust-xmpp upload-migrate OLD_CONFIG NEW_CONFIG --component HOST [--execute]\nrust-xmpp check-config PATH\nrust-xmpp convert PATH json|yaml|toml OUTPUT\nrust-xmpp --version\n\nExperimental runtime: serve CONFIG --experimental\ncreate-user CONFIG USER --password-stdin\ncheck [CONFIG] (running server healthcheck)\nshell CONFIG COMMAND\n\nSTARTTLS, SCRAM/PLAIN, local messaging, roster, MAM, MUC, PEP/pubsub, stream management, push, federation and HTTP transports are implemented with limitations; see docs/COMPATIBILITY.md."
         ),
         _ => bail!("invalid command; use --help"),
     }

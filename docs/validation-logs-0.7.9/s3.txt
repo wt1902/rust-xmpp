@@ -1,0 +1,1 @@
+PASS upload S3 protocol fixture: SigV4, multipart, abort, range, restart, expiry and backend isolation

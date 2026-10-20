@@ -1,4 +1,4 @@
-# Rust XMPP 0.7.7
+# Rust XMPP 0.7.9
 
 Сервер на Rust, разрабатываемый для замены **Prosody 13.0 nightly 100,
 cafd74b9c5ea** с предоставленными модулями. Читает существующий Lua-конфиг,
@@ -197,3 +197,12 @@ Cached SASL2 Bind2/SM requests допускают legacy fallback, XEP-0258/0077
 объявляются для Gajim; policy/classifications схема может использоваться
 как каталог labels. Дубликаты одинаковых log destinations устранены.
 Подробности — [CHANGELOG-0.7.5.md](CHANGELOG-0.7.5.md).
+
+## HTTP Upload в 0.7.9
+
+Несколько upload components с разными HTTP hosts или mounts и S3-compatible
+gateway с multipart streaming описаны в [docs/HTTP-UPLOAD.md](docs/HTTP-UPLOAD.md).
+Добавлены offline миграция с SHA-256/resume, точечная очистка multipart и
+карантин неопределённого completion. Реальные 10 GiB через MinIO проверены с
+описанной адаптацией тестовой среды. Изменения и границы подтверждения —
+[CHANGELOG-0.7.9.md](CHANGELOG-0.7.9.md).

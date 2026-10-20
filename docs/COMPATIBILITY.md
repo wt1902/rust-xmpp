@@ -8,7 +8,7 @@
 | Область | Что реализовано | Существенные пределы |
 |---|---|---|
 | Конфигурация | Lua/JSON/YAML/YML/TOML, Include, глобальные и локальные области, наследование модулей | Lua VM ограничена; не все функции окружения конфигуратора Prosody доступны. Runtime обслуживает один VirtualHost и его компоненты |
-| Хранилище | internal `.dat`, `.list`, бинарные строки, смешанные ключи Lua, атомарные записи, потоковые архивы, инвалидирование `.lidx` | SQL, external storage и произвольные драйверы не реализованы. Каталог блокируется между процессами Rust; Prosody в блокировке не участвует |
+| Хранилище | internal `.dat`, `.list`, бинарные строки, смешанные ключи Lua, атомарные записи, потоковые архивы, инвалидирование `.lidx` | SQL, external storage остальных модулей и произвольные драйверы не реализованы; S3 uploads поддержаны. Каталог блокируется между процессами Rust; Prosody в блокировке не участвует |
 | Аккаунты, saslauth | internal_hashed SHA-1/SHA-256, SASLprep, PLAIN внутри TLS, SCRAM и PLUS с tls-exporter/tls-server-end-point, SSDP, SASL2 | Только internal_hashed; опциональный sasl2_bind2 (alias bind2) поддерживает inline bind/SM/CSI/Carbons. SASL2 inline SM resume и takeover живого транспорта реализованы; MAM metadata при Bind2 читает весь архив синхронно |
 | Сообщения и presence | локальная маршрутизация, приоритеты ресурсов, контакты/подписки/probes, offline, carbons, блокировки | Полная совместимость всех пограничных сценариев маршрутизации ещё не подтверждена |
 | MAM | личный и комнатный MAM2, prefs, формы, RSM, фильтры времени/контакта/ID, extended queries, metadata, stanza-id, expiry | Нет доказательства совпадения каждой ошибки и порядка результатов при всех комбинациях запроса |
@@ -18,7 +18,7 @@
 | SM/push | acknowledgements, resumable sessions, replay, ограниченные очереди, native регистрации push и ответы сервисов | Есть coalescing и watchdog первого push; полный цикл с настоящим APNs/FCM шлюзом не проверен. Состояние живых сессий не переживает перезапуск процесса |
 | CSI | active/inactive, ограниченный буфер, native importance rules, delay, flush при клиентской активности и grace period | Событие socket drain приближено завершением записи; необязательные расширенные XPath-фильтры поддержаны не полностью |
 | Федерация | входящие/исходящие STARTTLS, CA/DNS-ID, SASL EXTERNAL, DNS SRV, проверка домена каждого stanza, ограниченный пул соединений | Нет dialback/DANE/OtherName-only/SRV-ID/bidi/direct TLS |
-| HTTP upload | слоты XEP-0363, streaming PUT, GET/HEAD/range/conditional, лимиты/квоты/expiry, native metadata, JWT slots | Один upload-компонент; внешнее объектное хранилище не реализовано. Фактический upload 10 GiB не прогонялся |
+| HTTP upload | Несколько XEP-0363 components, Host/path isolation, local/S3 gateway, multipart/SigV4, streaming PUT, GET/HEAD/range/conditional, квоты/expiry, native metadata/JWT; offline local↔S3/S3↔S3 migration с SHA-256/resume; intent/exact-key recovery и quarantine; реальный 10 GiB PUT/GET через MinIO проверен | MinIO single-node с описанным netlink adapter тестовой среды; AWS/distributed deployment не проверены. Миграция требует остановки сервера и временного места под один файл; source сохраняется. Потерянные ownership metadata и неопределённый Complete требуют отдельного разбора; HTTP-UPLOAD.md |
 | WebSocket/BOSH | WS/WSS и HTTP/HTTPS, общая XMPP-сессия, origin rules, BOSH RID/retry/hold/reorder/restart; http_altconnect XRD/JRD discovery; http_paths, HTTP Host/fallback, внешний URL, доверенные IP/CIDR и forwarded headers для TLS reverse proxy | Один VirtualHost с компонентами; нет PROXYv1/v2, произвольных Lua HTTP-приложений и горячей перенастройки. См. HTTP-PROXY.md |
 | admin_shell | протокол admin socket, status/version/uptime, списки, основные операции аккаунтов | Нет произвольного Lua, горячей загрузки модулей и полного набора prosodyctl |
 | Остальные модули | disco, ping, time, version, uptime, register, TURN extdisco/HMAC, каталог seclabels | Нет встроенного TURN. Coturn работает отдельно. `pep_simple` пуст в предоставленном исходнике |
@@ -29,8 +29,10 @@
   на противоречащий этому комментарий в исходном файле.
 - Личная история настроена `never`, комнатная — на неделю. Очистка выполняется
   периодически; append не переписывает весь архив.
-- Лимит отдельного файла — 10 GiB, общий — 100 GiB. Сетевой тест проверяет
-  потоковую загрузку меньшего файла; это не проверка фактической загрузки 10 GiB.
+- Лимит отдельного файла — 10 GiB, общий — 100 GiB. В 0.7.8 фактические
+  HTTPS PUT/GET 10 GiB с local backend проверены с совпадением SHA-256,
+  Range за 4 GiB и выборочным RSS. В 0.7.9 дополнительно проверены 10 GiB через
+  MinIO single-node с описанным adapter тестовой среды; см. VALIDATION-0.7.9.md.
 - Структура `security_labels.default_policy/policies/classifications` отличается
   от native `mod_seclabels`. С0.7.1 её точная schema может использоваться как
   catalog metadata: выбранный default_policy и его classifications. ACL и

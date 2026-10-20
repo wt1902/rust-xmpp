@@ -47,3 +47,7 @@ pub mod muc_recovery;
 pub mod muc_history;
 
 pub mod http_altconnect;
+
+pub mod object_store;
+
+pub mod upload_migration;

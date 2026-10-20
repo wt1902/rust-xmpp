@@ -1,0 +1,12 @@
+{
+  "source_url": "https://github.com/minio/minio/archive/refs/tags/RELEASE.2025-04-22T22-12-26Z.tar.gz",
+  "upstream_release": "RELEASE.2025-04-22T22-12-26Z",
+  "build": "Go1.24.3 go build -p4; no dependency changes",
+  "sha256": {
+    "/tmp/minio-source.tar.gz": "1a63209927b9d1fb239b2a776b7b01d1902eff19379a108f4bc7005edcc0968c",
+    "/tmp/minio-genuine": "3dd5d6756ad17c599fbc1c6f6a2f5b590242c049522e848c700949dbf8e60ad9",
+    "/tmp/minio-sandbox-compat": "8bbb9bccfbac69869ab499c39cfd8731b2b770b86ccf37cca1c8267556ad9bf0",
+    "/tmp/minio-sandbox-compat.patch": "e60592a65273f28a1375eb6ecbc0966f7fbd2ba7567d2ffedc13ffd95ed224f5"
+  },
+  "compatibility_limitation": "Only net.Interfaces EPERM becomes loopback127.0.0.1; all S3/auth/multipart/storage source unchanged."
+}

@@ -30,6 +30,7 @@ pub enum HttpRoute {
     Websocket,
     Bosh,
     Altconnect,
+    Upload,
 }
 
 #[derive(Clone)]

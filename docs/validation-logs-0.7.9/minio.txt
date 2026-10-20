@@ -1,0 +1,52 @@
+MINIO PUT: 1074790400/10737418240 bytes (204.9 MiB/s)
+MINIO PUT: 2181038080/10737418240 bytes (208.0 MiB/s)
+MINIO PUT: 3321888768/10737418240 bytes (211.2 MiB/s)
+MINIO PUT: 4504682496/10737418240 bytes (214.7 MiB/s)
+MINIO PUT: 5596250112/10737418240 bytes (213.1 MiB/s)
+MINIO PUT: 6719275008/10737418240 bytes (213.2 MiB/s)
+MINIO PUT: 7837057024/10737418240 bytes (213.2 MiB/s)
+MINIO PUT: 8984199168/10737418240 bytes (213.8 MiB/s)
+MINIO PUT: 10084155392/10737418240 bytes (213.3 MiB/s)
+MINIO PUT: 10737418240/10737418240 bytes (213.1 MiB/s)
+MINIO GET: 3736076288/10737418240 bytes (712.4 MiB/s)
+MINIO GET: 7658799104/10737418240 bytes (730.3 MiB/s)
+MINIO GET: 10737418240/10737418240 bytes (746.9 MiB/s)
+{
+  "ok": true,
+  "minio_version": "minio-sandbox-compat version DEVELOPMENT.GOGET (commit-id=DEVELOPMENT.GOGET)\nRuntime: go1.24.3 linux/amd64\nLicense: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html\nCopyright: 2015-0000 MinIO, Inc.",
+  "minio_binary_sha256": "8bbb9bccfbac69869ab499c39cfd8731b2b770b86ccf37cca1c8267556ad9bf0",
+  "binary": "/workspace/scratch/362577cdf2e0/recovered/rust-xmpp/target/release/rust-xmpp",
+  "binary_version": "rust-xmpp 0.7.9 \u2014 experimental XMPP runtime",
+  "binary_sha256": "24c0dca637e7ce4e238ef6becad16bb5a18a33546554b0eecf310fd8927f021c",
+  "size": 10737418240,
+  "qualifies_over_5gib": true,
+  "minio_test_only_compatibility_patch": {
+    "sha256": "e60592a65273f28a1375eb6ecbc0966f7fbd2ba7567d2ffedc13ffd95ed224f5",
+    "diff": "--- a/cmd/net.go\n+++ b/cmd/net.go\n@@ -24,6 +24,7 @@\n \t\"runtime\"\n \t\"sort\"\n \t\"strings\"\n+\t\"syscall\"\n \n \t\"github.com/minio/minio-go/v7/pkg/set\"\n \t\"github.com/minio/minio/internal/config\"\n@@ -54,6 +55,10 @@\n // mustGetLocalIPs returns IPs of local interface\n func mustGetLocalIPs() (ipList []net.IP) {\n \tifs, err := net.Interfaces()\n+\t// TEST ONLY: the sandbox denies netlink enumeration; all listeners bind loopback.\n+\tif errors.Is(err, syscall.EPERM) {\n+\t\treturn []net.IP{net.ParseIP(\"127.0.0.1\")}\n+\t}\n \tlogger.FatalIf(err, \"Unable to get IP addresses of this host\")\n \n \tfor _, interf := range ifs {\n",
+    "limitation": "Modified upstream MinIO: EPERM interface enumeration uses loopback; all S3/auth/storage code remains upstream."
+  },
+  "max_rss_bytes": {
+    "server": 106057728,
+    "client": 24338432,
+    "minio": 498958336
+  },
+  "put_bytes": 10737418240,
+  "put_seconds": 48.45253416699961,
+  "sha256": "e4c296c41d3a9605f0348961e41ed835b5f42c220751ed2269a726951546c935",
+  "minio_etag": "958f42d583ac40ff209eb865c5eb4bd6-1280",
+  "multipart_parts": 1280,
+  "minio_allocated_bytes": 10747953152,
+  "free_disk_after_put_bytes": 15180328960,
+  "get_bytes": 10737418240,
+  "get_sha256": "e4c296c41d3a9605f0348961e41ed835b5f42c220751ed2269a726951546c935",
+  "get_seconds": 13.709708632000911,
+  "range_offsets": [
+    0,
+    4294967289,
+    5368709113,
+    10737418208
+  ],
+  "restart_range_ok": true,
+  "restart_reuse_status": 409,
+  "crash_multipart_cleanup_ok": true
+}

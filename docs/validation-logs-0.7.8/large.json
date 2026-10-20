@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "requested_bytes": 10737418240,
+  "python_chunk_bytes": 1048576,
+  "transport": "verified TLS HTTPS",
+  "storage": "local streaming file",
+  "rss_sample_interval_seconds": 0.05,
+  "free_disk_before_bytes": 14037065728,
+  "max_rss_bytes": {
+    "server": 18079744,
+    "client": 21168128
+  },
+  "rss_proc_status_paths": {
+    "server": "/proc/68012/status",
+    "client": "/proc/self/status"
+  },
+  "put_bytes": 10737418240,
+  "put_seconds": 14.389516601999276,
+  "sha256": "e4c296c41d3a9605f0348961e41ed835b5f42c220751ed2269a726951546c935",
+  "stored_bytes": 10737418240,
+  "allocated_bytes": 10737422336,
+  "free_disk_after_put_bytes": 2734645248,
+  "head_status": 200,
+  "get_bytes": 10737418240,
+  "get_read_calls": 10241,
+  "get_seconds": 69.22072244599985,
+  "get_sha256": "e4c296c41d3a9605f0348961e41ed835b5f42c220751ed2269a726951546c935",
+  "range_status": 206,
+  "range_offset": 4294967289,
+  "reuse_status": 409,
+  "over_quota_condition": "not-acceptable",
+  "temporary_files_cleaned": true,
+  "free_disk_after_cleanup_bytes": 12774170624,
+  "total_seconds": 84.19309745400096
+}

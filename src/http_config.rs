@@ -28,7 +28,7 @@ fn string(options: &Options, key: &str) -> Result<Option<String>> {
         })
         .transpose()
 }
-fn valid_authority(authority: &axum::http::uri::Authority) -> bool {
+pub(crate) fn valid_authority(authority: &axum::http::uri::Authority) -> bool {
     let raw = authority.as_str();
     if raw.contains('@') {
         return false;

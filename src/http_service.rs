@@ -1,6 +1,7 @@
 //! Streaming XEP-0363 upload endpoint. Slots are single-use and bounded before streaming.
 use crate::{
     logging::{Level, Logger},
+    object_store::{ObjectStore, PART_SIZE, UploadBackendConfig},
     storage,
     wire::escape,
 };
@@ -56,13 +57,29 @@ struct Record {
     token: String,
     complete: bool,
     #[serde(default)]
+    upload_id: Option<String>,
+    // Durable before CreateMultipartUpload: UploadId may be lost in a crash.
+    #[serde(default)]
+    multipart_intent: bool,
+    #[serde(default)]
+    completion_attempted: bool,
+    #[serde(default)]
     xml: Option<String>,
 }
+#[derive(Debug)]
+struct CompletionUncertain;
+impl std::fmt::Display for CompletionUncertain {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("S3 completion outcome uncertain; reservation quarantined for reconciliation")
+    }
+}
+impl std::error::Error for CompletionUncertain {}
 #[derive(Clone)]
 pub struct UploadService {
     config: Arc<UploadConfig>,
     records: Arc<Mutex<BTreeMap<String, Record>>>,
     active: Arc<Mutex<BTreeSet<String>>>,
+    backend: Option<Arc<ObjectStore>>,
 }
 pub struct Slot {
     pub url: String,
@@ -105,6 +122,13 @@ fn url_decode(value: &str) -> Option<Vec<u8>> {
 }
 impl UploadService {
     pub fn new(config: UploadConfig) -> Result<Self> {
+        Self::new_with_backend(config, UploadBackendConfig::Local)
+    }
+    pub fn new_with_backend(config: UploadConfig, backend: UploadBackendConfig) -> Result<Self> {
+        let backend = match backend {
+            UploadBackendConfig::Local => None,
+            UploadBackendConfig::S3(c) => Some(Arc::new(ObjectStore::new(c)?)),
+        };
         ensure!(
             config.base_url.starts_with("https://") || config.base_url.starts_with("http://"),
             "invalid upload base URL"
@@ -131,7 +155,24 @@ impl UploadService {
                 .attribute("size")
                 .ok_or_else(|| anyhow::anyhow!("upload size missing"))?
                 .parse()?;
-            let token = records.remove(&e.id).map(|r| r.token).unwrap_or_default();
+            let cached = records.remove(&e.id);
+            let complete = cached.as_ref().is_some_and(|r| {
+                r.complete && r.owner == e.peer && r.filename == filename && r.size == size
+            });
+            let upload_id = cached
+                .as_ref()
+                .filter(|r| r.owner == e.peer && r.filename == filename && r.size == size)
+                .and_then(|r| r.upload_id.clone());
+            let multipart_intent = cached.as_ref().is_some_and(|r| {
+                r.owner == e.peer && r.filename == filename && r.size == size && r.multipart_intent
+            });
+            let completion_attempted = cached.as_ref().is_some_and(|r| {
+                r.owner == e.peer
+                    && r.filename == filename
+                    && r.size == size
+                    && r.completion_attempted
+            });
+            let token = cached.map(|r| r.token).unwrap_or_default();
             authoritative.insert(
                 e.id,
                 Record {
@@ -144,19 +185,150 @@ impl UploadService {
                         .into(),
                     created: e.when as u64,
                     token,
-                    complete: false,
+                    complete,
+                    upload_id,
+                    multipart_intent,
+                    completion_attempted,
                     xml: Some(e.xml),
                 },
             );
         }
         records = authoritative;
+        let identity = backend
+            .as_ref()
+            .map(|b| b.identity())
+            .unwrap_or_else(|| serde_json::json!({"backend":"local"}));
+        let identity_path = config
+            .root
+            .join(storage::encode_name(&config.host))
+            .join("rust_upload_backend.json");
+        if identity_path.exists() {
+            let previous: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(&identity_path)?)?;
+            ensure!(
+                records.is_empty() || previous == identity,
+                "upload backend changed while slots still exist"
+            );
+        } else {
+            ensure!(
+                backend.is_none() || records.is_empty(),
+                "existing upload slots require an explicit storage migration"
+            );
+        }
+        storage::atomic_write(&identity_path, &serde_json::to_vec(&identity)?)?;
         let s = Self {
             config: Arc::new(config),
             records: Arc::new(Mutex::new(records)),
             active: Arc::new(Mutex::new(BTreeSet::new())),
+            backend,
         };
-        s.prune()?;
+        // Remote pending records must be reconciled before the abandoned-slot
+        // timeout is applied. The caller awaits recover_backend before listening.
+        if s.backend.is_none() {
+            s.prune()?;
+        }
         Ok(s)
+    }
+    /// Recover durable multipart state before enabling listeners or slot requests.
+    pub async fn recover_backend(&self) -> Result<()> {
+        if self.backend.is_none() {
+            return Ok(());
+        }
+        let pending: Vec<_> = self
+            .records
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, r)| {
+                !r.complete || r.upload_id.is_some() || r.multipart_intent || r.completion_attempted
+            })
+            .map(|(id, r)| (id.clone(), r.clone()))
+            .collect();
+        for (id, record) in pending {
+            if let Err(error) = self.reconcile_record(id, record).await
+                && error.downcast_ref::<CompletionUncertain>().is_none()
+            {
+                return Err(error);
+            }
+        }
+        let service = self.clone();
+        tokio::task::spawn_blocking(move || service.prune()).await??;
+        Ok(())
+    }
+    async fn reconcile_record(&self, id: String, record: Record) -> Result<()> {
+        let Some(backend) = &self.backend else {
+            return Ok(());
+        };
+        if !record.complete || record.multipart_intent {
+            // Also cover old journals from before multipart_intent existed.
+            // This exact durable reservation is exclusively claimed by the
+            // startup barrier or the active-set lock. Never sweep a bucket.
+            backend.abort_pending(&id).await?;
+        }
+        if let Some(upload_id) = &record.upload_id {
+            backend.abort(&id, upload_id).await?;
+        }
+        // Completion may have committed while abort was in flight. Only the
+        // post-abort HEAD can establish the current single-use object state.
+        let head = backend.read(&id, true, None).await?;
+        let complete = match head.status() {
+            StatusCode::OK => {
+                ensure!(
+                    head.headers()
+                        .get("content-length")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|v| v.parse::<u64>().ok())
+                        == Some(record.size),
+                    "S3 recovered object size mismatch"
+                );
+                true
+            }
+            StatusCode::NOT_FOUND => false,
+            _ => anyhow::bail!("S3 recovery HEAD failed"),
+        };
+        if !complete && record.completion_attempted {
+            return Err(CompletionUncertain.into());
+        }
+        let service = self.clone();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let mut records = service.records.lock().unwrap();
+            if let Some(r) = records.get_mut(&id)
+                && r.upload_id == record.upload_id
+                && r.multipart_intent == record.multipart_intent
+            {
+                r.complete = complete;
+                r.upload_id = None;
+                r.multipart_intent = false;
+                r.completion_attempted = false;
+            }
+            service.persist(&records)
+        })
+        .await??;
+        Ok(())
+    }
+    /// Read-only identifiers for unresolved completion attempts. Credentials,
+    /// bearer tokens and object contents are never included.
+    pub fn quarantined_slots(&self) -> Vec<String> {
+        let records = self.records.lock().unwrap();
+        let active = self.active.lock().unwrap();
+        records
+            .iter()
+            .filter(|(id, r)| r.completion_attempted && !r.complete && !active.contains(*id))
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+    fn claim_upload(&self, id: &str) -> std::result::Result<Record, StatusCode> {
+        // Match prune's lock order, and read all mutable completion state under
+        // the same records lock used to establish the active claim.
+        let records = self.records.lock().unwrap();
+        let record = records.get(id).ok_or(StatusCode::GONE)?;
+        if record.complete || (self.backend.is_none() && self.file(id).exists()) {
+            return Err(StatusCode::CONFLICT);
+        }
+        if !self.active.lock().unwrap().insert(id.to_owned()) {
+            return Err(StatusCode::CONFLICT);
+        }
+        Ok(record.clone())
     }
     fn persist(&self, r: &BTreeMap<String, Record>) -> Result<()> {
         let mut entries: Vec<_> = r
@@ -214,11 +386,41 @@ impl UploadService {
     }
     pub fn prune(&self) -> Result<()> {
         let mut r = self.records.lock().unwrap();
-        let active = self.active.lock().unwrap();
+        let mut active = self.active.lock().unwrap();
+        if self.backend.is_some()
+            && let Ok(handle) = tokio::runtime::Handle::try_current()
+        {
+            for (id, record) in r
+                .iter()
+                .filter(|(id, r)| {
+                    (r.upload_id.is_some() || r.multipart_intent || r.completion_attempted)
+                        && !active.contains(*id)
+                })
+                .map(|(id, r)| (id.clone(), r.clone()))
+                .collect::<Vec<_>>()
+            {
+                active.insert(id.clone());
+                let service = self.clone();
+                handle.spawn(async move {
+                    let recovered = service.reconcile_record(id.clone(), record).await.is_ok();
+                    tokio::task::spawn_blocking(move || {
+                        service.active.lock().unwrap().remove(&id);
+                        if recovered {
+                            let _ = service.prune();
+                        }
+                    })
+                    .await
+                    .ok();
+                });
+            }
+        }
         let obsolete: Vec<String> = r
             .iter()
             .filter(|(id, v)| {
                 !active.contains(*id)
+                    && v.upload_id.is_none()
+                    && !v.multipart_intent
+                    && !v.completion_attempted
                     && (self
                         .config
                         .expires_after
@@ -230,6 +432,29 @@ impl UploadService {
             .map(|(id, _)| id.clone())
             .collect();
         for id in obsolete {
+            if let Some(backend) = self.backend.clone() {
+                // Keep the reservation and metadata until remote deletion succeeds.
+                // The active claim prevents duplicate workers and concurrent PUTs.
+                if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                    active.insert(id.clone());
+                    let service = self.clone();
+                    handle.spawn(async move {
+                        let deleted = backend.delete(&id).await.is_ok();
+                        tokio::task::spawn_blocking(move || {
+                            let mut records = service.records.lock().unwrap();
+                            let mut active = service.active.lock().unwrap();
+                            if deleted {
+                                records.remove(&id);
+                                let _ = service.persist(&records);
+                            }
+                            active.remove(&id);
+                        })
+                        .await
+                        .ok();
+                    });
+                }
+                continue;
+            }
             match std::fs::remove_file(self.file(&id)) {
                 Ok(()) => {}
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -314,6 +539,9 @@ impl UploadService {
                 created: now(),
                 token,
                 complete: false,
+                upload_id: None,
+                multipart_intent: false,
+                completion_attempted: false,
                 xml: None,
             },
         );
@@ -358,9 +586,10 @@ impl UploadService {
             let config = Arc::downgrade(&self.config);
             let records = Arc::downgrade(&self.records);
             let active = Arc::downgrade(&self.active);
+            let backend = self.backend.clone();
             handle.spawn(async move {
                 loop {
-                    tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                     let (Some(config), Some(records), Some(active)) =
                         (config.upgrade(), records.upgrade(), active.upgrade())
                     else {
@@ -370,6 +599,7 @@ impl UploadService {
                         config,
                         records,
                         active,
+                        backend: backend.clone(),
                     };
                     let _ = tokio::task::spawn_blocking(move || service.prune()).await;
                 }
@@ -379,6 +609,14 @@ impl UploadService {
             .fallback(any(endpoint))
             .with_state(self.clone())
             .layer(axum::Extension(UploadPath(prefix)))
+    }
+    pub async fn handle_at(&self, req: Request, internal_path: &str) -> Response {
+        endpoint(
+            State(self.clone()),
+            axum::Extension(UploadPath(internal_path.trim_end_matches('/').to_owned())),
+            req,
+        )
+        .await
     }
     pub async fn serve(&self, listener: TcpListener, tls: Option<TlsAcceptor>) -> Result<()> {
         serve_router(listener, tls, self.router()).await
@@ -496,6 +734,7 @@ async fn serve_router_inner(
                             Some(crate::http_transport::HttpRoute::Websocket) => "websocket",
                             Some(crate::http_transport::HttpRoute::Bosh) => "bosh",
                             Some(crate::http_transport::HttpRoute::Altconnect) => "altconnect",
+                            Some(crate::http_transport::HttpRoute::Upload) => "upload",
                             None => default_route,
                         };
                         let status = response.status();
@@ -693,20 +932,15 @@ async fn handle_at(s: UploadService, req: Request, prefix: &str) -> Response {
         {
             return response(StatusCode::PAYLOAD_TOO_LARGE);
         }
-        if record.complete || s.file(id).exists() {
+        if record.complete || (s.backend.is_none() && s.file(id).exists()) {
             return response(StatusCode::CONFLICT);
         };
-        {
-            // Use the same lock order as prune: a reservation must still exist
-            // when it becomes active, so pruning cannot orphan an upload.
-            let records = s.records.lock().unwrap();
-            if !records.contains_key(id) {
-                return response(StatusCode::GONE);
-            }
-            if !s.active.lock().unwrap().insert(id.into()) {
-                return response(StatusCode::CONFLICT);
-            }
-        }
+        // Refresh the snapshot atomically with the exclusive claim. A request
+        // may have waited while an earlier PUT committed or was quarantined.
+        let record = match s.claim_upload(id) {
+            Ok(record) => record,
+            Err(status) => return response(status),
+        };
         let dest = s.file(id);
         let temp = dest.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
         let _guard = UploadGuard {
@@ -714,6 +948,212 @@ async fn handle_at(s: UploadService, req: Request, prefix: &str) -> Response {
             id: id.into(),
             temp: temp.clone(),
         };
+        if let Some(backend) = &s.backend {
+            if (record.upload_id.is_some()
+                || record.multipart_intent
+                || record.completion_attempted)
+                && let Err(error) = s.reconcile_record(id.to_owned(), record.clone()).await
+            {
+                return response(if error.downcast_ref::<CompletionUncertain>().is_some() {
+                    StatusCode::CONFLICT
+                } else {
+                    StatusCode::BAD_GATEWAY
+                });
+            }
+            // Reconcile a remote commit whose response or local metadata write
+            // was interrupted, rather than overwriting a single-use object.
+            match backend.read(id, true, None).await {
+                Ok(reply) if reply.status() == StatusCode::NOT_FOUND => {}
+                Ok(reply) if reply.status() == StatusCode::OK => {
+                    if reply
+                        .headers()
+                        .get("content-length")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|v| v.parse::<u64>().ok())
+                        != Some(record.size)
+                    {
+                        return response(StatusCode::BAD_GATEWAY);
+                    }
+                    let service = s.clone();
+                    let id = id.to_owned();
+                    return response(
+                        tokio::task::spawn_blocking(move || {
+                            let _guard = _guard;
+                            let mut records = service.records.lock().unwrap();
+                            if let Some(r) = records.get_mut(&id) {
+                                r.complete = true;
+                                r.upload_id = None;
+                                r.multipart_intent = false;
+                                r.completion_attempted = false;
+                            }
+                            if service.persist(&records).is_err() {
+                                StatusCode::INTERNAL_SERVER_ERROR
+                            } else {
+                                StatusCode::CONFLICT
+                            }
+                        })
+                        .await
+                        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+                    );
+                }
+                _ => return response(StatusCode::BAD_GATEWAY),
+            }
+            // Hold the single-use claim across initiation and journaling even
+            // if the HTTP request is cancelled. A persisted intent closes the
+            // crash window before S3 returns its UploadId.
+            let service = s.clone();
+            let backend = backend.clone();
+            let slot_id = id.to_owned();
+            let content_type = record.content_type.clone();
+            let initiation = tokio::spawn(async move {
+                let guard = _guard;
+                let journal = service.clone();
+                let journal_id = slot_id.clone();
+                tokio::task::spawn_blocking(move || -> Result<()> {
+                    let mut records = journal.records.lock().unwrap();
+                    let r = records
+                        .get_mut(&journal_id)
+                        .ok_or_else(|| anyhow::anyhow!("upload reservation missing"))?;
+                    r.multipart_intent = true;
+                    journal.persist(&records)
+                })
+                .await??;
+                let mut upload = backend.begin(&slot_id, &content_type).await?;
+                let upload_id = upload.upload_id().to_owned();
+                let cleanup = service.clone();
+                upload.after_abort(move || {
+                    // HEAD must reconcile a possible remote commit before
+                    // clearing the intent, even when abort returns 404.
+                    tokio::task::spawn_blocking(move || {
+                        let _ = cleanup.prune();
+                    });
+                });
+                tokio::task::spawn_blocking(move || -> Result<()> {
+                    let mut records = service.records.lock().unwrap();
+                    let r = records
+                        .get_mut(&slot_id)
+                        .ok_or_else(|| anyhow::anyhow!("upload reservation missing"))?;
+                    r.upload_id = Some(upload_id);
+                    service.persist(&records)
+                })
+                .await??;
+                Ok::<_, anyhow::Error>((upload, guard))
+            });
+            let (mut upload, _guard) = match initiation.await {
+                Ok(Ok(value)) => value,
+                _ => return response(StatusCode::BAD_GATEWAY),
+            };
+            let mut body = req.into_body();
+            let mut count = 0u64;
+            let mut part = Vec::with_capacity(PART_SIZE);
+            loop {
+                let frame =
+                    match tokio::time::timeout(std::time::Duration::from_secs(120), body.frame())
+                        .await
+                    {
+                        Ok(Some(Ok(frame))) => frame,
+                        Ok(Some(Err(_))) => return response(StatusCode::BAD_REQUEST),
+                        Ok(None) => break,
+                        Err(_) => return response(StatusCode::REQUEST_TIMEOUT),
+                    };
+                if let Ok(bytes) = frame.into_data() {
+                    count = count.saturating_add(bytes.len() as u64);
+                    if count > record.size {
+                        return response(StatusCode::PAYLOAD_TOO_LARGE);
+                    }
+                    let mut bytes = bytes.as_ref();
+                    while !bytes.is_empty() {
+                        let take = (PART_SIZE - part.len()).min(bytes.len());
+                        part.extend_from_slice(&bytes[..take]);
+                        bytes = &bytes[take..];
+                        if part.len() == PART_SIZE
+                            && upload
+                                .part(std::mem::replace(&mut part, Vec::with_capacity(PART_SIZE)))
+                                .await
+                                .is_err()
+                        {
+                            return response(StatusCode::BAD_GATEWAY);
+                        }
+                    }
+                }
+            }
+            if count != record.size {
+                return response(StatusCode::BAD_REQUEST);
+            }
+            if (!part.is_empty() || count == 0) && upload.part(part).await.is_err() {
+                return response(StatusCode::BAD_GATEWAY);
+            }
+            // Once completing begins, finish the durable commit even if the
+            // HTTP client disconnects. Keep the single-use claim until then.
+            let service = s.clone();
+            let id = id.to_owned();
+            let commit = tokio::spawn(async move {
+                let _guard = _guard;
+                let journal = service.clone();
+                let journal_id = id.clone();
+                if !matches!(
+                    tokio::task::spawn_blocking(move || -> Result<()> {
+                        let mut records = journal.records.lock().unwrap();
+                        let r = records
+                            .get_mut(&journal_id)
+                            .ok_or_else(|| anyhow::anyhow!("upload reservation missing"))?;
+                        r.completion_attempted = true;
+                        journal.persist(&records)
+                    })
+                    .await,
+                    Ok(Ok(()))
+                ) {
+                    return StatusCode::INTERNAL_SERVER_ERROR;
+                }
+                if let Err(error) = upload.complete().await {
+                    if error
+                        .downcast_ref::<crate::object_store::CompletionRejected>()
+                        .is_some()
+                    {
+                        // Explicit terminal rejection is retryable after HEAD
+                        // reconciliation. Network/XML uncertainty stays frozen.
+                        let journal = service.clone();
+                        let journal_id = id.clone();
+                        let _ = tokio::task::spawn_blocking(move || -> Result<()> {
+                            let mut records = journal.records.lock().unwrap();
+                            if let Some(r) = records.get_mut(&journal_id) {
+                                r.completion_attempted = false;
+                            }
+                            journal.persist(&records)
+                        })
+                        .await;
+                    }
+                    // Multipart::drop may finish its abort while this commit
+                    // still owns the active claim. Its callback's prune then
+                    // correctly skips the slot, so it cannot be our only
+                    // reconciliation trigger. Reconcile under this same claim
+                    // before returning the ambiguous completion response.
+                    let pending = service.records.lock().unwrap().get(&id).cloned();
+                    if let Some(record) = pending {
+                        let _ = service.reconcile_record(id.clone(), record).await;
+                    }
+                    return StatusCode::BAD_GATEWAY;
+                }
+                tokio::task::spawn_blocking(move || {
+                    let _guard = _guard;
+                    let mut records = service.records.lock().unwrap();
+                    if let Some(r) = records.get_mut(&id) {
+                        r.complete = true;
+                        r.upload_id = None;
+                        r.multipart_intent = false;
+                        r.completion_attempted = false;
+                    }
+                    if service.persist(&records).is_err() {
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    } else {
+                        StatusCode::CREATED
+                    }
+                })
+                .await
+                .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+            });
+            return response(commit.await.unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
+        }
         if tokio::fs::create_dir_all(dest.parent().unwrap())
             .await
             .is_err()
@@ -769,36 +1209,78 @@ async fn handle_at(s: UploadService, req: Request, prefix: &str) -> Response {
                 return response(StatusCode::INTERNAL_SERVER_ERROR);
             }
         }
-        let mut records = s.records.lock().unwrap();
-        if let Some(r) = records.get_mut(id) {
-            r.complete = true;
-        }
-        if s.persist(&records).is_err() {
-            return response(StatusCode::INTERNAL_SERVER_ERROR);
-        };
-        return response(StatusCode::CREATED);
+        let id = id.to_owned();
+        return response(
+            tokio::task::spawn_blocking(move || {
+                let _guard = _guard;
+                let mut records = s.records.lock().unwrap();
+                if let Some(r) = records.get_mut(&id) {
+                    r.complete = true;
+                }
+                if s.persist(&records).is_err() {
+                    StatusCode::INTERNAL_SERVER_ERROR
+                } else {
+                    StatusCode::CREATED
+                }
+            })
+            .await
+            .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        );
     }
     if req.method() != "GET" && req.method() != "HEAD" {
         return response(StatusCode::METHOD_NOT_ALLOWED);
     }
-    let Ok(mut file) = tokio::fs::File::open(s.file(id)).await else {
+    if s.backend.is_some() && !record.complete {
         return response(StatusCode::GONE);
+    }
+    let mut local_file = if s.backend.is_none() {
+        match tokio::fs::File::open(s.file(id)).await {
+            Ok(file) => Some(file),
+            Err(_) => return response(StatusCode::GONE),
+        }
+    } else {
+        None
     };
     let modified = chrono::DateTime::from_timestamp(record.created as i64, 0)
         .map(|d| d.format("%a, %d %b %Y %H:%M:%S GMT").to_string())
         .unwrap_or_default();
-    if req
-        .headers()
-        .get("if-modified-since")
-        .and_then(|v| v.to_str().ok())
-        == Some(modified.as_str())
-    {
-        return response(StatusCode::NOT_MODIFIED);
+    let etag = format!("\"{id}-{}\"", record.size);
+    let date_matches = |value: &str| {
+        chrono::DateTime::parse_from_rfc2822(value)
+            .ok()
+            .is_some_and(|d| d.timestamp() >= record.created as i64)
+    };
+    let not_modified = if let Some(value) = req.headers().get("if-none-match") {
+        value.to_str().ok().is_some_and(|v| {
+            v.split(',').any(|candidate| {
+                let candidate = candidate.trim();
+                candidate == "*" || candidate.strip_prefix("W/").unwrap_or(candidate) == etag
+            })
+        })
+    } else {
+        req.headers()
+            .get("if-modified-since")
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(date_matches)
+    };
+    if not_modified {
+        return Response::builder()
+            .status(StatusCode::NOT_MODIFIED)
+            .header("etag", &etag)
+            .header("last-modified", &modified)
+            .body(Body::empty())
+            .unwrap();
     }
+    let range_allowed = req.headers().get("if-range").is_none_or(|value| {
+        value
+            .to_str()
+            .ok()
+            .is_some_and(|v| v == etag || date_matches(v))
+    });
     let mut status = StatusCode::OK;
     let mut start = 0;
     let mut end = record.size.saturating_sub(1);
-    if let Some(range) = req.headers().get("range") {
+    if let Some(range) = req.headers().get("range").filter(|_| range_allowed) {
         let parsed = range
             .to_str()
             .ok()
@@ -833,14 +1315,50 @@ async fn handle_at(s: UploadService, req: Request, prefix: &str) -> Response {
         status = StatusCode::PARTIAL_CONTENT;
     }
     let length = if record.size == 0 { 0 } else { end - start + 1 };
-    if file.seek(std::io::SeekFrom::Start(start)).await.is_err() {
-        return response(StatusCode::INTERNAL_SERVER_ERROR);
-    };
     use tokio::io::AsyncReadExt;
-    let body = if req.method() == "HEAD" {
-        Body::empty()
+    let body = if let Some(backend) = &s.backend {
+        let range = (status == StatusCode::PARTIAL_CONTENT).then(|| format!("bytes={start}-{end}"));
+        let Ok(reply) = backend
+            .read(id, req.method() == "HEAD", range.as_deref())
+            .await
+        else {
+            return response(StatusCode::BAD_GATEWAY);
+        };
+        if reply.status() == StatusCode::NOT_FOUND {
+            return response(StatusCode::GONE);
+        }
+        if reply.status() != status {
+            return response(StatusCode::BAD_GATEWAY);
+        }
+        if reply
+            .headers()
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+            != Some(length)
+        {
+            return response(StatusCode::BAD_GATEWAY);
+        }
+        if status == StatusCode::PARTIAL_CONTENT
+            && reply
+                .headers()
+                .get("content-range")
+                .and_then(|v| v.to_str().ok())
+                != Some(format!("bytes {start}-{end}/{}", record.size).as_str())
+        {
+            return response(StatusCode::BAD_GATEWAY);
+        }
+        reply.into_body()
     } else {
-        Body::from_stream(ReaderStream::new(file.take(length)))
+        let mut file = local_file.take().unwrap();
+        if file.seek(std::io::SeekFrom::Start(start)).await.is_err() {
+            return response(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+        if req.method() == "HEAD" {
+            Body::empty()
+        } else {
+            Body::from_stream(ReaderStream::new(file.take(length)))
+        }
     };
     let disposition = if record.content_type == "text/plain"
         || ["image/", "video/", "audio/"]
@@ -869,6 +1387,7 @@ async fn handle_at(s: UploadService, req: Request, prefix: &str) -> Response {
         )
         .header("access-control-allow-origin", "*")
         .header("accept-ranges", "bytes")
+        .header("etag", etag)
         .header("last-modified", modified)
         .header("cache-control", "max-age=31556952, immutable")
         .header("x-frame-options", "DENY")
@@ -989,6 +1508,60 @@ mod tests {
                 .status(),
             StatusCode::NOT_FOUND
         );
+    }
+
+    #[test]
+    fn upload_claim_refreshes_completion_state_after_an_earlier_snapshot() {
+        let temp = tempfile::tempdir().unwrap();
+        let service = UploadService::new(UploadConfig {
+            root: temp.path().into(),
+            host: "upload.example.test".into(),
+            base_url: "https://upload.example.test/file_share".into(),
+            size_limit: 1,
+            daily_quota: 3,
+            global_quota: 3,
+            expires_after: None,
+            allowed_types: vec![],
+            secret: None,
+        })
+        .unwrap();
+        service
+            .request_slot("a@example.test", "pending", 1, "text/plain")
+            .unwrap();
+        let (id, stale) = service
+            .records
+            .lock()
+            .unwrap()
+            .iter()
+            .next()
+            .map(|(id, r)| (id.clone(), r.clone()))
+            .unwrap();
+        assert!(!stale.completion_attempted);
+        // Another PUT finishes ambiguously after this request has read its
+        // initial snapshot, but before it acquires the active claim.
+        service
+            .records
+            .lock()
+            .unwrap()
+            .get_mut(&id)
+            .unwrap()
+            .completion_attempted = true;
+        let fresh = service.claim_upload(&id).unwrap();
+        assert!(fresh.completion_attempted);
+        assert!(service.active.lock().unwrap().contains(&id));
+        service.active.lock().unwrap().remove(&id);
+        service
+            .records
+            .lock()
+            .unwrap()
+            .get_mut(&id)
+            .unwrap()
+            .complete = true;
+        assert!(matches!(
+            service.claim_upload(&id),
+            Err(StatusCode::CONFLICT)
+        ));
+        assert!(!service.active.lock().unwrap().contains(&id));
     }
 
     #[test]

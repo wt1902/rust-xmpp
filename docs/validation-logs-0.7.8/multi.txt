@@ -1,0 +1,1 @@
+PASS: multiple upload hosts/shared-host paths, discovery, quotas, JWT isolation, persistence, transport composition and conflict validation
