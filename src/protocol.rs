@@ -2,6 +2,8 @@ use crate::wire::escape;
 #[derive(Default, Debug)]
 pub struct ModuleResult {
     pub replies: Vec<String>,
+    /// A final response after durable session revocation; never retained for resume.
+    pub terminal_reply: bool,
     /// (destination full or bare JID, serialized stanza)
     pub deliveries: Vec<(String, String)>,
 }
@@ -9,6 +11,7 @@ impl ModuleResult {
     pub fn reply(xml: String) -> Self {
         Self {
             replies: vec![xml],
+            terminal_reply: false,
             deliveries: vec![],
         }
     }

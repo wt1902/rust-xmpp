@@ -10,6 +10,8 @@ const MUC: &str = "http://jabber.org/protocol/muc";
 const USER: &str = "http://jabber.org/protocol/muc#user";
 const OWNER: &str = "http://jabber.org/protocol/muc#owner";
 const ADMIN: &str = "http://jabber.org/protocol/muc#admin";
+#[path = "muc_admin.rs"]
+mod component_admin;
 #[derive(Clone)]
 struct Occupant {
     jid: String,
@@ -17,6 +19,7 @@ struct Occupant {
     role: String,
     presence_payload: String,
 }
+#[derive(Clone)]
 struct Room {
     frozen: Value,
     original: crate::storage::LuaValue,
@@ -280,11 +283,21 @@ pub struct Muc {
     defaults: Value,
     pending_occupants: crate::muc_recovery::PendingOccupants,
     recovering_role: Option<String>,
+    journal_ready: bool,
+    native_deferred: bool,
     local_domain: Option<String>,
     tombstones: bool,
+    tombstone_expiry: f64,
+    allow_unaffiliated_register: bool,
+    enforce_registered_nickname: bool,
+    registration_include_form: bool,
+    command_sessions: BTreeMap<String, (String, String, std::time::Instant)>,
     room_locking: bool,
     log_all_rooms: bool,
     log_presences: bool,
+    max_rooms: Option<usize>,
+    restrict_room_creation: Value,
+    component_admins: Vec<String>,
     max_history_messages: usize,
     log_include_total: bool,
     occupant_id_enabled: bool,
@@ -302,9 +315,17 @@ impl Muc {
             rooms: BTreeMap::new(),
             local_domain: None,
             tombstones: true,
+            tombstone_expiry: 31.0 * 86400.0,
+            allow_unaffiliated_register: false,
+            enforce_registered_nickname: false,
+            registration_include_form: false,
+            command_sessions: BTreeMap::new(),
             room_locking: true,
             log_all_rooms: false,
             log_presences: false,
+            max_rooms: None,
+            restrict_room_creation: Value::Bool(false),
+            component_admins: Vec::new(),
             max_history_messages: 100,
             log_include_total: true,
             occupant_id_enabled: true,
@@ -315,6 +336,8 @@ impl Muc {
             pending_iq: BTreeMap::new(),
             pending_occupants: Default::default(),
             recovering_role: None,
+            journal_ready: false,
+            native_deferred: false,
             defaults: json!({"hidden":true,"persistent":false,"whois":"moderators"}),
         }
     }
@@ -326,6 +349,28 @@ impl Muc {
                 .and_then(Value::as_bool)
                 .unwrap_or(default)
         };
+        self.max_rooms = options
+            .get("muc_max_rooms")
+            .and_then(Value::as_u64)
+            .map(|n| n as usize);
+        self.restrict_room_creation = options
+            .get("restrict_room_creation")
+            .cloned()
+            .unwrap_or(Value::Bool(false));
+        self.component_admins = options
+            .get("admins")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect();
+        self.pending_occupants.set_grace_seconds(
+            options
+                .get("muc_recovery_grace_period")
+                .and_then(Value::as_u64)
+                .unwrap_or(crate::muc_recovery::RECOVERY_SECONDS),
+        );
         self.max_history_messages = options
             .get("max_history_messages")
             .and_then(Value::as_u64)
@@ -333,6 +378,11 @@ impl Muc {
             .min(4096) as usize;
         self.occupant_id_enabled = flag("muc_occupant_id", true);
         self.vcard_enabled = flag("muc_vcard", true);
+        self.allow_unaffiliated_register = flag("allow_unaffiliated_register", false);
+        self.enforce_registered_nickname = flag("enforce_registered_nickname", false);
+        self.registration_include_form = flag("muc_registration_include_form", false);
+        self.tombstone_expiry =
+            component_admin::period(options.get("muc_tombstone_expiry")).unwrap_or(31.0 * 86400.0);
         self.log_all_rooms = mam_enabled && flag("muc_log_all_rooms", false);
         self.log_presences = mam_enabled && flag("muc_log_presences", false);
         self.log_include_total = flag("muc_log_include_total", true);
@@ -369,11 +419,275 @@ impl Muc {
         merge_value(&mut value, &room.frozen);
         value
     }
-    /// Read dormant native checkpoints without activating any routing targets.
-    pub fn prepare_recovery(&mut self) -> Result<()> {
+    /// A single fsync/rename is the commit point for room metadata, membership
+    /// and bounded discussion history. Native stores remain interoperability
+    /// exports; Rust recovery always starts from this complete generation.
+    fn commit_rooms(&mut self) -> Result<()> {
+        use crate::storage::LuaValue as V;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
+        self.pending_occupants.expire(now);
+        let mut journal = V::table();
+        journal.set("version", V::Integer(1));
+        let mut rooms = V::table();
+        for (name, room) in &self.rooms {
+            let mut item = V::table();
+            let config = Self::frozen_room(room);
+            item.set("config", config);
+            if (room.data("persistent").as_bool() == Some(true)
+                || self.pending_occupants.has_room(name))
+                && let Some(native) = crate::storage::load(
+                    &self.root,
+                    &self.domain,
+                    Some(name.split('@').next().unwrap()),
+                    "config",
+                )?
+            {
+                item.set(
+                    "native_hash",
+                    crate::muc_recovery::configuration_fingerprint(&native)?.into(),
+                );
+            }
+            item.set("history", room.history.checkpoint());
+            let mut members = V::table();
+            let mut snapshots = self.pending_occupants.checkpoint_members(name, now);
+            snapshots.retain(|(_, o)| !room.occupants.contains_key(&o.jid));
+            snapshots.extend(room.occupants.values().map(|o| {
+                (
+                    now,
+                    crate::muc_recovery::OccupantSnapshot {
+                        jid: o.jid.clone(),
+                        nick: o.nick.clone(),
+                        role: o.role.clone(),
+                        presence_payload: o.presence_payload.clone(),
+                    },
+                )
+            }));
+            let saved_at = snapshots.iter().map(|(at, _)| *at).min().unwrap_or(now);
+            anyhow::ensure!(
+                snapshots.len() <= crate::muc_recovery::MAX_OCCUPANTS,
+                "occupant recovery limit"
+            );
+            for (at, o) in snapshots {
+                let mut member = V::table();
+                member.set("nick", o.nick.into());
+                member.set("role", o.role.into());
+                member.set(
+                    "presence",
+                    crate::muc_recovery::sanitize_presence_payload(&o.presence_payload).into(),
+                );
+                member.set(
+                    "saved_offset",
+                    V::Integer(at.saturating_sub(saved_at) as i64),
+                );
+                members.set(&o.jid, member);
+            }
+            item.set("saved_at", V::Integer(saved_at as i64));
+            item.set(
+                "grace_seconds",
+                V::Integer(self.pending_occupants.grace_seconds() as i64),
+            );
+            item.set("occupants", members);
+            rooms.set(name, item);
+        }
+        journal.set("rooms", rooms);
+        let path = crate::storage::path(&self.root, &self.domain, None, "rust_muc_checkpoint");
+        // Shared native serializer rejects a component-wide image above 16MiB.
+        let encoded = crate::storage::serialize(&journal)?;
+        anyhow::ensure!(
+            encoded.len() <= 16 * 1024 * 1024,
+            "MUC checkpoint byte limit"
+        );
+        crate::storage::atomic_write(&path, encoded.as_bytes())
+    }
+    fn recover_journal(&mut self, journal: crate::storage::LuaValue, now: u64) -> Result<()> {
+        use crate::storage::LuaValue as V;
+        anyhow::ensure!(
+            journal.get("version").and_then(V::as_i64) == Some(1),
+            "unsupported MUC checkpoint"
+        );
+        let rooms = journal
+            .get("rooms")
+            .ok_or_else(|| anyhow::anyhow!("invalid MUC checkpoint"))?;
+        for (key, item) in rooms.entries() {
+            let name = key
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("invalid checkpoint room"))?;
+            anyhow::ensure!(
+                name.ends_with(&format!("@{}", self.domain))
+                    && !name.contains('/')
+                    && name.len() <= 3072,
+                "invalid checkpoint room"
+            );
+            let mut config = item
+                .get("config")
+                .ok_or_else(|| anyhow::anyhow!("missing checkpoint config"))?
+                .clone();
+            // Honor an administrator's native-store edits conservatively: a
+            // changed policy invalidates every saved admission proof/history.
+            let mut policy_changed = false;
+            if let Some(native) = crate::storage::load(
+                &self.root,
+                &self.domain,
+                Some(name.split('@').next().unwrap()),
+                "config",
+            )? {
+                let actual = crate::muc_recovery::configuration_fingerprint(&native)?;
+                let committed = crate::muc_recovery::configuration_fingerprint(&config)?;
+                let expected = item.get("native_hash").and_then(V::as_str);
+                let persistent = config.get("_data").and_then(|data| data.get("persistent"))
+                    == Some(&V::Bool(true));
+                if (persistent || expected.is_some())
+                    && actual != committed
+                    && expected != Some(actual.as_str())
+                {
+                    config = native;
+                    policy_changed = true;
+                }
+            } else if item.get("native_hash").is_some() {
+                // Removing an exported native room is an explicit revocation.
+                continue;
+            }
+            self.insert_loaded_room(name, config)?;
+            let room = self.rooms.get_mut(name).unwrap();
+            if !policy_changed && let Some(history) = item.get("history") {
+                room.history.restore_checkpoint(history);
+            }
+            if policy_changed || room.data("destroyed").as_bool() == Some(true) {
+                continue;
+            }
+            let saved_at = item
+                .get("saved_at")
+                .and_then(V::as_i64)
+                .and_then(|t| u64::try_from(t).ok())
+                .unwrap_or(0);
+            let mut occupants = Vec::new();
+            if let Some(members) = item.get("occupants") {
+                anyhow::ensure!(
+                    members.entries().len() <= crate::muc_recovery::MAX_OCCUPANTS,
+                    "occupant recovery limit"
+                );
+                for (jid, member) in members.entries() {
+                    let Some(jid) = jid.as_str().filter(|s| {
+                        s.contains('/') && s.len() <= 3072 && !s.chars().any(char::is_control)
+                    }) else {
+                        continue;
+                    };
+                    let Some(nick) = member.get("nick").and_then(V::as_str).filter(|s| {
+                        !s.is_empty() && s.len() <= 3072 && !s.chars().any(char::is_control)
+                    }) else {
+                        continue;
+                    };
+                    let Some(role) = member
+                        .get("role")
+                        .and_then(V::as_str)
+                        .filter(|r| matches!(*r, "moderator" | "participant" | "visitor"))
+                    else {
+                        continue;
+                    };
+                    let presence_payload = member
+                        .get("presence")
+                        .and_then(V::as_str)
+                        .filter(|s| s.len() <= 16 * 1024)
+                        .unwrap_or("");
+                    let offset = member
+                        .get("saved_offset")
+                        .and_then(V::as_i64)
+                        .and_then(|t| u64::try_from(t).ok())
+                        .unwrap_or(0);
+                    occupants.push((
+                        saved_at.saturating_add(offset),
+                        crate::muc_recovery::OccupantSnapshot {
+                            jid: jid.into(),
+                            nick: nick.into(),
+                            role: role.into(),
+                            presence_payload: crate::muc_recovery::sanitize_presence_payload(
+                                presence_payload,
+                            ),
+                        },
+                    ));
+                }
+            }
+            let configured_grace = self.pending_occupants.grace_seconds();
+            let saved_grace = item
+                .get("grace_seconds")
+                .and_then(V::as_i64)
+                .and_then(|n| u64::try_from(n).ok())
+                .unwrap_or(crate::muc_recovery::RECOVERY_SECONDS);
+            self.pending_occupants.set_grace_seconds(saved_grace);
+            let inserted =
+                self.pending_occupants
+                    .insert_checkpoint_members(name.into(), occupants, now);
+            self.pending_occupants.set_grace_seconds(configured_grace);
+            inserted?;
+        }
+        Ok(())
+    }
+    /// Read dormant native checkpoints without activating any routing targets.
+    pub fn prepare_recovery(&mut self) -> Result<()> {
+        if self.journal_ready {
+            return Ok(());
+        }
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs();
+        if let Some(journal) =
+            crate::storage::load(&self.root, &self.domain, None, "rust_muc_checkpoint")?
+        {
+            self.journal_ready = true;
+            if let Err(error) = self.recover_journal(journal, now) {
+                self.journal_ready = false;
+                self.rooms.clear();
+                self.pending_occupants = Default::default();
+                return Err(error);
+            }
+            return Ok(());
+        }
+        // Native operators may write a room config before updating the room
+        // index. Import those configurations before establishing journal authority.
+        let directory = self
+            .root
+            .join(crate::storage::encode_name(&self.domain))
+            .join("config");
+        if directory.exists() {
+            for entry in std::fs::read_dir(directory)? {
+                let entry = entry?;
+                let filename = entry.file_name();
+                let Some(stem) = filename.to_str().and_then(|s| s.strip_suffix(".dat")) else {
+                    continue;
+                };
+                let mut decoded = Vec::new();
+                let mut chars = stem.as_bytes().iter().copied();
+                let mut valid = true;
+                while let Some(byte) = chars.next() {
+                    if byte == b'%' {
+                        let hex = chars.next().zip(chars.next()).and_then(|(a, b)| {
+                            Some(((a as char).to_digit(16)? * 16 + (b as char).to_digit(16)?) as u8)
+                        });
+                        if let Some(byte) = hex {
+                            decoded.push(byte);
+                        } else {
+                            valid = false;
+                            break;
+                        }
+                    } else {
+                        decoded.push(byte);
+                    }
+                }
+                let Ok(node) = String::from_utf8(decoded) else {
+                    continue;
+                };
+                if valid
+                    && !node.is_empty()
+                    && !node.contains(['/', '@'])
+                    && !node.chars().any(char::is_control)
+                    && crate::storage::encode_name(&node) == stem
+                {
+                    self.load(&format!("{node}@{}", self.domain))?;
+                }
+            }
+        }
         if let Some(index) = crate::storage::load(&self.root, &self.domain, None, "persistent")? {
             for (key, _) in index.entries() {
                 let Some(name) = key
@@ -399,7 +713,7 @@ impl Muc {
                 let saved_at =
                     crate::muc_recovery::load_checkpoint_time(&self.root, &self.domain, name)?
                         .unwrap_or(0);
-                if now.saturating_sub(saved_at) >= crate::muc_recovery::RECOVERY_SECONDS {
+                if now.saturating_sub(saved_at) >= self.pending_occupants.grace_seconds() {
                     continue;
                 }
                 let occupants = crate::muc_recovery::load_room(&self.root, &self.domain, name)?;
@@ -407,10 +721,20 @@ impl Muc {
                     .insert_checkpoint(name.into(), occupants, saved_at, now)?;
             }
         }
+        self.commit_rooms()?;
+        self.journal_ready = true;
         Ok(())
+    }
+    /// Refresh only the authoritative crash image. Live identities receive the
+    /// configured recovery window; dormant identities keep their fixed deadline.
+    pub fn checkpoint_durable(&mut self) -> Result<()> {
+        self.prepare_recovery()?;
+        self.commit_rooms()
     }
     /// Freeze room metadata and live occupants before transport teardown.
     pub fn checkpoint_live(&mut self) -> Result<()> {
+        self.prepare_recovery()?;
+        self.commit_rooms()?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
@@ -471,9 +795,13 @@ impl Muc {
                     .filter(|(packet, _)| packet.len() <= 16 * 1024),
             )?;
         }
+        self.commit_rooms()?;
         Ok(())
     }
     fn consume_recovery_checkpoint(&self, room: &str, jid: &str) -> Result<()> {
+        if self.journal_ready {
+            return Ok(());
+        }
         let mut remaining = crate::muc_recovery::load_room(&self.root, &self.domain, room)?;
         remaining.retain(|o| o.jid != jid);
         let fingerprint = crate::muc_recovery::load_fingerprint(&self.root, &self.domain, room)?;
@@ -498,6 +826,19 @@ impl Muc {
     }
     /// Called only for an authenticated full JID's initial available presence.
     pub fn restore_for_session(&mut self, jid: &str) -> Result<ModuleResult> {
+        self.prepare_recovery()?;
+        let rooms = self.rooms.clone();
+        let pending = self.pending_occupants.clone();
+        let result = self.restore_session_uncommitted(jid);
+        if result.is_err() {
+            self.rooms = rooms;
+            self.pending_occupants = pending;
+        } else {
+            self.export_committed(&rooms);
+        }
+        result
+    }
+    fn restore_session_uncommitted(&mut self, jid: &str) -> Result<ModuleResult> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_secs();
@@ -508,8 +849,10 @@ impl Muc {
             };
             let fingerprint =
                 crate::muc_recovery::configuration_fingerprint(&Self::frozen_room(room))?;
-            if crate::muc_recovery::load_fingerprint(&self.root, &self.domain, &name)?.as_deref()
-                != Some(fingerprint.as_str())
+            if !self.journal_ready
+                && crate::muc_recovery::load_fingerprint(&self.root, &self.domain, &name)?
+                    .as_deref()
+                    != Some(fingerprint.as_str())
             {
                 continue;
             }
@@ -524,9 +867,9 @@ impl Muc {
                 .as_str()
                 .filter(|p| !p.is_empty())
                 .map(|p| format!("<x xmlns='{MUC}'><password>{}</password></x>", escape(p)))
-                .unwrap_or_default();
+                .unwrap_or_else(|| format!("<x xmlns='{MUC}'/>"));
             let packet = format!(
-                "<presence to='{}/{}'>{}{password}</presence>",
+                "<presence xmlns='jabber:client' to='{}/{}'>{}{password}</presence>",
                 escape(&name),
                 escape(&snapshot.nick),
                 snapshot.presence_payload
@@ -555,6 +898,7 @@ impl Muc {
                 }
             }
         }
+        self.commit_rooms()?;
         Ok(out)
     }
     pub fn set_tombstones(&mut self, enabled: bool) {
@@ -582,53 +926,64 @@ impl Muc {
         if self.rooms.contains_key(room) {
             return Ok(());
         }
+        if self.journal_ready {
+            return Ok(());
+        }
         let p = self.path(room);
         if p.exists() {
             let original = crate::storage::parse(&std::fs::read(&p)?)?;
-            let mut value = view_value(&original);
-            if value["_data"]["archiving"].is_null() {
-                value["_data"]["archiving"] = self.defaults["archiving"].clone();
-            }
-            if !matches!(
-                original
-                    .get("_data")
-                    .and_then(|d| d.get("occupant_id_salt")),
-                Some(crate::storage::LuaValue::String(_))
-            ) {
-                value["_data"]["occupant_id_salt"] = json!(uuid::Uuid::new_v4().to_string());
-            }
-            let mut history = crate::muc_history::RoomHistory::new(
-                value["_data"]["history_length"].as_u64().unwrap_or(20) as usize,
-            );
-            if let Some((packet, when)) =
-                crate::muc_recovery::load_last_message(&self.root, &self.domain, room)?
-            {
-                history.restore_last_message(&packet, when);
-            }
-            self.rooms.insert(
-                room.into(),
-                Room {
-                    frozen: value.clone(),
-                    original,
-                    occupants: BTreeMap::new(),
-                    history,
-                    occupant_id_enabled: self.occupant_id_enabled,
-                    force_archiving: self.log_all_rooms,
-                    hats_compat: self.hats_compat,
-                    locked: value["_data"]["locked"].as_bool() == Some(true)
-                        || value["_data"]["locked"].as_f64().is_some_and(|v| {
-                            v > std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_secs_f64()
-                        }),
-                },
-            );
+            self.insert_loaded_room(room, original)?;
         }
         Ok(())
     }
+    fn insert_loaded_room(&mut self, room: &str, original: crate::storage::LuaValue) -> Result<()> {
+        let mut value = view_value(&original);
+        if value["_data"]["archiving"].is_null() {
+            value["_data"]["archiving"] = self.defaults["archiving"].clone();
+        }
+        if !matches!(
+            original
+                .get("_data")
+                .and_then(|d| d.get("occupant_id_salt")),
+            Some(crate::storage::LuaValue::String(_))
+        ) {
+            value["_data"]["occupant_id_salt"] = json!(uuid::Uuid::new_v4().to_string());
+        }
+        let mut history = crate::muc_history::RoomHistory::new(
+            value["_data"]["history_length"]
+                .as_u64()
+                .unwrap_or(20)
+                .min(self.max_history_messages as u64) as usize,
+        );
+        if !self.journal_ready
+            && let Some((packet, when)) =
+                crate::muc_recovery::load_last_message(&self.root, &self.domain, room)?
+        {
+            history.restore_last_message(&packet, when);
+        }
+        self.rooms.insert(
+            room.into(),
+            Room {
+                frozen: value.clone(),
+                original,
+                occupants: BTreeMap::new(),
+                history,
+                occupant_id_enabled: self.occupant_id_enabled,
+                force_archiving: self.log_all_rooms,
+                hats_compat: self.hats_compat,
+                locked: value["_data"]["locked"].as_bool() == Some(true)
+                    || value["_data"]["locked"].as_f64().is_some_and(|v| {
+                        v > std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs_f64()
+                    }),
+            },
+        );
+        Ok(())
+    }
     fn save(&self, room: &str) -> Result<()> {
-        if self.recovering_role.is_some() {
+        if self.native_deferred || self.recovering_role.is_some() {
             return Ok(());
         }
         let r = &self.rooms[room];
@@ -659,7 +1014,27 @@ impl Muc {
         }
         Ok(())
     }
+    fn export_committed(&self, previous: &BTreeMap<String, Room>) {
+        // Native files are compatibility exports after the authoritative commit.
+        // An export failure cannot undo a durably accepted room mutation.
+        for name in previous
+            .keys()
+            .filter(|name| !self.rooms.contains_key(*name))
+        {
+            if let Err(error) = self.delete_saved_room(name) {
+                eprintln!("MUC native deletion export failed: {error}");
+            }
+        }
+        for name in self.rooms.keys() {
+            if let Err(error) = self.save(name) {
+                eprintln!("MUC native room export failed: {error}");
+            }
+        }
+    }
     fn delete_saved_room(&self, room: &str) -> Result<()> {
+        if self.native_deferred {
+            return Ok(());
+        }
         let node = room.split('@').next().unwrap();
         for store in ["config", "state"] {
             let path = crate::storage::path(&self.root, &self.domain, Some(node), store);
@@ -680,6 +1055,21 @@ impl Muc {
     /// Periodic maintenance, including rooms which have not received traffic.
     /// Caller may invoke once a minute; `now` is UTC Unix seconds.
     pub fn maintenance(&mut self, now: f64) -> Result<()> {
+        self.prepare_recovery()?;
+        let rooms = self.rooms.clone();
+        let pending = self.pending_occupants.clone();
+        self.native_deferred = true;
+        let result = self.maintenance_uncommitted(now);
+        self.native_deferred = false;
+        if result.is_err() {
+            self.rooms = rooms;
+            self.pending_occupants = pending;
+        } else {
+            self.export_committed(&rooms);
+        }
+        result
+    }
+    fn maintenance_uncommitted(&mut self, now: f64) -> Result<()> {
         anyhow::ensure!(
             now.is_finite() && now >= 0.0,
             "invalid maintenance timestamp"
@@ -737,9 +1127,36 @@ impl Muc {
                 self.save(&name)?;
             }
         }
+        self.commit_rooms()?;
         Ok(())
     }
     pub fn disconnect(&mut self, jid: &str) -> ModuleResult {
+        match self.disconnect_durable(jid) {
+            Ok(out) => out,
+            Err(error) => {
+                eprintln!("MUC durable disconnect failed: {error}");
+                ModuleResult::default()
+            }
+        }
+    }
+    pub fn disconnect_durable(&mut self, jid: &str) -> Result<ModuleResult> {
+        self.prepare_recovery()?;
+        let rooms = self.rooms.clone();
+        let pending = self.pending_occupants.clone();
+        self.native_deferred = true;
+        self.pending_occupants.remove_jid(jid);
+        let out = self.disconnect_uncommitted(jid);
+        let committed = self.commit_rooms();
+        self.native_deferred = false;
+        if let Err(error) = committed {
+            self.rooms = rooms;
+            self.pending_occupants = pending;
+            return Err(error);
+        }
+        self.export_committed(&rooms);
+        Ok(out)
+    }
+    fn disconnect_uncommitted(&mut self, jid: &str) -> ModuleResult {
         let mut out = ModuleResult::default();
         for (name, r) in &mut self.rooms {
             if let Some(o) = r.occupants.remove(jid) {
@@ -784,6 +1201,65 @@ impl Muc {
         out
     }
     pub fn handle(&mut self, jid: &str, stanza: roxmltree::Node) -> Result<Option<ModuleResult>> {
+        let target = bare(stanza.attribute("to").unwrap_or(""));
+        if target != self.domain && !target.ends_with(&format!("@{}", self.domain)) {
+            return Ok(None);
+        }
+        self.prepare_recovery()?;
+        let rooms = self.rooms.clone();
+        let pending = self.pending_occupants.clone();
+        let was_deferred = self.native_deferred;
+        self.native_deferred = true;
+        let outcome = (|| {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_secs();
+            self.pending_occupants.expire(now);
+            let expired = self
+                .rooms
+                .iter()
+                .filter(|(name, room)| {
+                    room.occupants.is_empty()
+                        && room.data("persistent").as_bool() != Some(true)
+                        && room.data("destroyed").as_bool() != Some(true)
+                        && !self.pending_occupants.has_room(name)
+                })
+                .map(|(name, _)| name.clone())
+                .collect::<Vec<_>>();
+            for name in expired {
+                self.delete_saved_room(&name)?;
+                self.rooms.remove(&name);
+            }
+            let out = self.handle_uncommitted(jid, stanza)?;
+            // A changed configuration invalidates old dormant authorization.
+            for (name, before) in &rooms {
+                if self
+                    .rooms
+                    .get(name)
+                    .is_none_or(|after| Self::frozen_room(before) != Self::frozen_room(after))
+                {
+                    self.pending_occupants.remove_room(name);
+                }
+            }
+            if self.recovering_role.is_none() {
+                self.commit_rooms()?;
+            }
+            Ok(out)
+        })();
+        self.native_deferred = was_deferred;
+        if outcome.is_err() {
+            self.rooms = rooms;
+            self.pending_occupants = pending;
+        } else if !was_deferred && self.recovering_role.is_none() {
+            self.export_committed(&rooms);
+        }
+        outcome
+    }
+    fn handle_uncommitted(
+        &mut self,
+        jid: &str,
+        stanza: roxmltree::Node,
+    ) -> Result<Option<ModuleResult>> {
         let target = bare(stanza.attribute("to").unwrap_or(""));
         let was_occupant = self
             .rooms
@@ -832,6 +1308,14 @@ impl Muc {
         Ok(result)
     }
     fn handle_inner(&mut self, jid: &str, stanza: roxmltree::Node) -> Result<Option<ModuleResult>> {
+        self.handle_inner_authorized(jid, stanza, false)
+    }
+    fn handle_inner_authorized(
+        &mut self,
+        jid: &str,
+        stanza: roxmltree::Node,
+        component_authority: bool,
+    ) -> Result<Option<ModuleResult>> {
         let to = stanza.attribute("to").unwrap_or("");
         let room = bare(to);
         if room != self.domain && !room.ends_with(&format!("@{}", self.domain)) {
@@ -840,12 +1324,13 @@ impl Muc {
         let kind = stanza.tag_name().name();
         let typ = stanza.attribute("type").unwrap_or("");
         let mut out = ModuleResult::default();
-        if kind == "message" && typ == "error"
-            || kind == "iq" && matches!(typ, "result" | "error") && !to.contains('/')
-        {
+        if kind == "iq" && matches!(typ, "result" | "error") && !to.contains('/') {
             return Ok(Some(out));
         }
         if room == self.domain {
+            if let Some(result) = component_admin::handle(self, jid, stanza)? {
+                return Ok(Some(result));
+            }
             if let Some(index) = crate::storage::load(&self.root, &self.domain, None, "persistent")?
             {
                 for (k, _) in index.entries() {
@@ -868,7 +1353,7 @@ impl Muc {
                             ),
                         ))));
                     }
-                    match q.tag_name().namespace().unwrap_or("") {"http://jabber.org/protocol/disco#info"=>out.replies.push(iq_result(stanza,&format!("<query xmlns='http://jabber.org/protocol/disco#info'><identity category='conference' type='text' name='Chatrooms'/><feature var='{MUC}'/><feature var='urn:xmpp:occupant-id:0'/></query>"))),"http://jabber.org/protocol/disco#items"=>{let mut items=String::new();for (n,r) in &self.rooms {if r.data("hidden").as_bool()!=Some(true){items.push_str(&format!("<item jid='{}' name='{}'/>",escape(n),escape(r.data("name").as_str().unwrap_or(n))));}}out.replies.push(iq_result(stanza,&format!("<query xmlns='http://jabber.org/protocol/disco#items'>{items}</query>")));},_=>out.replies.push(iq_error(stanza,"feature-not-implemented"))}
+                    match q.tag_name().namespace().unwrap_or("") {"http://jabber.org/protocol/disco#info"=>out.replies.push(iq_result(stanza,&format!("<query xmlns='http://jabber.org/protocol/disco#info'><identity category='conference' type='text' name='Chatrooms'/><feature var='http://jabber.org/protocol/commands'/><feature var='{MUC}'/><feature var='urn:xmpp:occupant-id:0'/></query>"))),"http://jabber.org/protocol/disco#items"=>{let mut items=String::new();for (n,r) in &self.rooms {if r.data("hidden").as_bool()!=Some(true){items.push_str(&format!("<item jid='{}' name='{}'/>",escape(n),escape(r.data("name").as_str().unwrap_or(n))));}}out.replies.push(iq_result(stanza,&format!("<query xmlns='http://jabber.org/protocol/disco#items'>{items}</query>")));},_=>out.replies.push(iq_error(stanza,"feature-not-implemented"))}
                 }
             } else {
                 out.replies.push(error(stanza, "service-unavailable"));
@@ -901,7 +1386,46 @@ impl Muc {
             r.locked = false;
             r.clear_data("locked");
         }
-        if kind == "presence" && typ != "unavailable" && typ != "error" {
+        if kind == "presence" && !matches!(typ, "" | "unavailable" | "error" | "probe") {
+            if !matches!(typ, "result" | "visible" | "invisible") {
+                out.replies.push(error(stanza, "bad-request"));
+            }
+            return Ok(Some(out));
+        }
+        if kind == "presence" && typ == "probe" {
+            let Some(r) = self.rooms.get(room) else {
+                return Ok(Some(ModuleResult::reply(error(stanza, "item-not-found"))));
+            };
+            let Some(prober) = r.occupants.get(jid) else {
+                return Ok(Some(ModuleResult::reply(error(stanza, "not-acceptable"))));
+            };
+            let nick = to.split_once('/').map(|(_, n)| n).unwrap_or(&prober.nick);
+            if let Some(occupant) = r.occupants.values().find(|o| o.nick == nick) {
+                out.replies
+                    .push(r.presence(room, occupant, prober, false, ""));
+            } else if let Some(owner) = r.reserved_by(nick) {
+                let public = r.data("whois").as_str() == Some("anyone")
+                    || prober.role == "moderator"
+                    || bare(jid) == owner
+                    || r.privileged(jid);
+                let real = if public {
+                    format!(" jid='{}'", escape(owner))
+                } else {
+                    String::new()
+                };
+                out.replies.push(format!("<presence xmlns='jabber:client' from='{}/{}' to='{}' type='unavailable'><x xmlns='{USER}'><item affiliation='{}' role='none' nick='{}'{real}/></x></presence>", escape(room), escape(nick), escape(jid), escape(&r.affiliation(owner)), escape(nick)));
+            }
+            return Ok(Some(out));
+        }
+        if kind == "presence" && typ.is_empty() {
+            if !self
+                .rooms
+                .get(room)
+                .is_some_and(|r| r.occupants.contains_key(jid))
+                && !stanza.children().any(|n| n.has_tag_name((MUC, "x")))
+            {
+                return Ok(Some(ModuleResult::reply(error(stanza, "item-not-found"))));
+            }
             let nick_owned = to
                 .split_once('/')
                 .map(|(_, n)| n.to_owned())
@@ -921,15 +1445,61 @@ impl Muc {
                 Ok(v) => v,
                 Err(_) => return Ok(Some(ModuleResult::reply(error(stanza, "jid-malformed")))),
             };
-            let nick = prepared.as_ref();
-            let created = !self.rooms.contains_key(room);
-            if created
-                && self
-                    .local_domain
-                    .as_ref()
-                    .is_some_and(|d| bare(jid).split_once('@').map(|(_, h)| h) != Some(d.as_str()))
+            if self
+                .rooms
+                .get(room)
+                .and_then(|r| r.reserved_by(prepared.as_ref()))
+                .is_some_and(|owner| owner != bare(jid))
             {
-                return Ok(Some(ModuleResult::reply(error(stanza, "forbidden"))));
+                return Ok(Some(ModuleResult::reply(error(stanza, "conflict"))));
+            }
+            let registered = self.rooms.get(room).and_then(|r| {
+                r.frozen["_affiliation_data"][bare(jid)]["reserved_nickname"]
+                    .as_str()
+                    .map(str::to_owned)
+            });
+            let enforced = if self.enforce_registered_nickname {
+                if let Some(registered) = registered {
+                    if self
+                        .rooms
+                        .get(room)
+                        .is_some_and(|r| r.occupants.contains_key(jid))
+                        && prepared.as_ref() != registered
+                    {
+                        return Ok(Some(ModuleResult::reply(error(stanza, "not-acceptable"))));
+                    }
+                    Some(registered)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            let nick = enforced.as_deref().unwrap_or(prepared.as_ref());
+            let created = !self.rooms.contains_key(room);
+            if created {
+                let admin = self
+                    .component_admins
+                    .iter()
+                    .any(|admin| bare(admin) == bare(jid));
+                let restricted = self.restrict_room_creation == Value::Bool(true) && !admin
+                    || self.restrict_room_creation.as_str() == Some("local")
+                        && !admin
+                        && self.local_domain.as_ref().is_none_or(|d| {
+                            bare(jid).split_once('@').map(|(_, h)| h) != Some(d.as_str())
+                        });
+                if restricted {
+                    return Ok(Some(ModuleResult::reply(error(stanza, "not-allowed"))));
+                }
+                if self
+                    .max_rooms
+                    .is_some_and(|limit| self.rooms.len() >= limit)
+                {
+                    return Ok(Some(ModuleResult::reply(
+                        error(stanza, "resource-constraint")
+                            .replace("type='cancel'", "type='wait'"),
+                    )));
+                }
             }
             if created {
                 let mut frozen =
@@ -1089,8 +1659,15 @@ impl Muc {
                     .children()
                     .filter(|n| {
                         n.is_element()
-                            && matches!(n.tag_name().namespace(), None | Some("jabber:client"))
-                            && matches!(n.tag_name().name(), "show" | "status" | "priority")
+                            && !matches!(
+                                n.tag_name().namespace(),
+                                Some(
+                                    MUC | USER
+                                        | "urn:xmpp:occupant-id:0"
+                                        | "urn:xmpp:hats:0"
+                                        | "xmpp:prosody.im/protocol/hats:1"
+                                )
+                            )
                     })
                     .map(xml)
                     .collect(),
@@ -1111,7 +1688,7 @@ impl Muc {
             }
             r.occupants.insert(jid.into(), o.clone());
             for target in r.occupants.values() {
-                let p = r.presence(
+                let mut p = r.presence(
                     room,
                     &o,
                     target,
@@ -1122,6 +1699,12 @@ impl Muc {
                         ""
                     },
                 );
+                if target.jid == jid && nick != prepared.as_ref() {
+                    p = p.replace(
+                        "<status code='110'/>",
+                        "<status code='110'/><status code='210'/>",
+                    );
+                }
                 if target.jid == jid {
                     out.replies.push(p);
                 } else {
@@ -1247,10 +1830,52 @@ impl Muc {
             out.replies.push(error(stanza, "item-not-found"));
             return Ok(Some(out));
         };
-        if kind == "presence" && (typ == "unavailable" || typ == "error") {
-            if let Some(o) = r.occupants.remove(jid) {
-                out.replies.push(r.presence(room, &o, &o, true, ""));
+        let kicked =
+            typ == "error" && (kind == "presence" || kind == "message" && kickable_error(stanza));
+        if kind == "message" && typ == "error" && !kicked {
+            if let Some((_, nick)) = to.split_once('/')
+                && let Some(sender) = r.occupants.get(jid)
+            {
+                let payload = stanza
+                    .children()
+                    .filter(|n| {
+                        n.is_element() && !matches!(n.tag_name().namespace(), Some(MUC | USER))
+                    })
+                    .map(xml)
+                    .collect::<String>();
+                for target in r.occupants.values().filter(|o| o.nick == nick) {
+                    out.deliveries.push((target.jid.clone(), format!("<message xmlns='jabber:client' from='{}/{}' to='{}' type='error' id='{}'>{payload}<x xmlns='{USER}'/></message>", escape(room), escape(&sender.nick), escape(&target.jid), escape(stanza.attribute("id").unwrap_or("")))));
+                }
+            }
+            return Ok(Some(out));
+        }
+        if kind == "presence" && typ == "unavailable" || kicked {
+            if let Some(mut o) = r.occupants.remove(jid) {
                 let remains = r.occupants.values().any(|other| other.nick == o.nick);
+                let code = if kicked && !remains { "333" } else { "" };
+                if kicked {
+                    let condition = stanza
+                        .children()
+                        .find(|n| n.has_tag_name("error"))
+                        .and_then(|n| {
+                            n.children().find(|n| {
+                                n.is_element()
+                                    && n.tag_name().namespace()
+                                        == Some("urn:ietf:params:xml:ns:xmpp-stanzas")
+                                    && n.tag_name().name() != "text"
+                            })
+                        })
+                        .map(|n| n.tag_name().name());
+                    o.presence_payload = format!(
+                        "<status>Kicked: {}</status>",
+                        escape(
+                            &condition
+                                .map(|c| c.replace('-', " "))
+                                .unwrap_or_else(|| "presence error".into())
+                        )
+                    );
+                }
+                out.replies.push(r.presence(room, &o, &o, true, code));
                 if !remains && self.log_presences && r.archiving() {
                     archive_presence(&self.root, &self.domain, room, &o.nick, true)?;
                 }
@@ -1259,7 +1884,7 @@ impl Muc {
                         continue;
                     }
                     out.deliveries
-                        .push((target.jid.clone(), r.presence(room, &o, target, true, "")));
+                        .push((target.jid.clone(), r.presence(room, &o, target, true, code)));
                 }
             }
             let now = std::time::SystemTime::now()
@@ -1355,7 +1980,21 @@ impl Muc {
                 } else {
                     let subject = stanza
                         .children()
-                        .find(|n| n.is_element() && n.tag_name().name() == "subject");
+                        .find(|n| {
+                            n.is_element()
+                                && matches!(n.tag_name().namespace(), None | Some("jabber:client"))
+                                && n.tag_name().name() == "subject"
+                        })
+                        .filter(|_| {
+                            !stanza.children().any(|n| {
+                                n.is_element()
+                                    && matches!(
+                                        n.tag_name().namespace(),
+                                        None | Some("jabber:client")
+                                    )
+                                    && matches!(n.tag_name().name(), "body" | "thread")
+                            })
+                        });
                     if let Some(s) = subject {
                         if o.role != "moderator" && r.data("changesubject").as_bool() != Some(true)
                         {
@@ -1593,7 +2232,7 @@ impl Muc {
                 if affiliation == "outcast" {
                     return Ok(Some(ModuleResult::reply(iq_error(stanza, "forbidden"))));
                 }
-                if affiliation == "none" {
+                if affiliation == "none" && !self.allow_unaffiliated_register {
                     return Ok(Some(ModuleResult::reply(iq_error(
                         stanza,
                         "registration-required",
@@ -1602,7 +2241,19 @@ impl Muc {
                 if typ == "get" {
                     let registered =
                         r.frozen["_affiliation_data"][bare(jid)]["reserved_nickname"].as_str();
-                    let content=registered.map(|nick|format!("<registered/><username>{}</username>",escape(nick))).unwrap_or_else(||"<x xmlns='jabber:x:data' type='form'><field var='FORM_TYPE' type='hidden'><value>http://jabber.org/protocol/muc#register</value></field><field var='muc#register_roomnick' type='text-single'><required/></field></x>".into());
+                    let content = registered
+                        .map(|nick| {
+                            format!(
+                                "<registered/><username>{}</username>{}",
+                                escape(nick),
+                                if self.registration_include_form {
+                                    component_admin::registration_form(Some(nick))
+                                } else {
+                                    String::new()
+                                }
+                            )
+                        })
+                        .unwrap_or_else(|| component_admin::registration_form(None));
                     return Ok(Some(ModuleResult::reply(iq_result(
                         stanza,
                         &format!("<query xmlns='jabber:iq:register'>{content}</query>"),
@@ -1678,6 +2329,26 @@ impl Muc {
                             .any(|o| o.nick == nick && bare(&o.jid) != bare(jid))
                     {
                         return Ok(Some(ModuleResult::reply(iq_error(stanza, "conflict"))));
+                    }
+                    if self.enforce_registered_nickname {
+                        let affected = r
+                            .occupants
+                            .values()
+                            .filter(|o| bare(&o.jid) == bare(jid) && o.nick != nick)
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        for o in affected {
+                            for target in r.occupants.values() {
+                                out.deliveries.push((
+                                    target.jid.clone(),
+                                    r.presence_force(room, &o, target, true, "307"),
+                                ));
+                            }
+                            r.occupants.remove(&o.jid);
+                        }
+                    }
+                    if affiliation == "none" {
+                        r.set_affiliation(bare(jid), "member");
                     }
                     r.frozen["_affiliation_data"][bare(jid)]["reserved_nickname"] =
                         json!(nick.as_ref());
@@ -1775,7 +2446,7 @@ impl Muc {
                 && typ == "set"
                 && q.children().any(|n| n.tag_name().name() == "destroy")
             {
-                if r.affiliation(jid) != "owner" {
+                if !component_authority && r.affiliation(jid) != "owner" {
                     return Ok(Some(ModuleResult::reply(iq_error(stanza, "forbidden"))));
                 }
                 let destroy = q
@@ -1807,7 +2478,7 @@ impl Muc {
                 }
                 let tombstone = self.tombstones && r.data("persistent").as_bool() == Some(true);
                 if tombstone {
-                    r.frozen = json!({"_jid":room,"_data":{"destroyed":true,"hidden":true,"persistent":true,"locked":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs()+31*86400,"reason":destroy.children().find(|n|n.tag_name().name()=="reason").and_then(|n|n.text()).unwrap_or(""),"newjid":destroy.attribute("jid").unwrap_or("")}});
+                    r.frozen = json!({"_jid":room,"_data":{"destroyed":true,"hidden":true,"persistent":true,"locked":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs_f64()+self.tombstone_expiry,"reason":destroy.children().find(|n|n.tag_name().name()=="reason").and_then(|n|n.text()).unwrap_or(""),"newjid":destroy.attribute("jid").unwrap_or("")}});
                     r.original = crate::storage::LuaValue::table();
                     r.occupants.clear();
                     self.save(room)?;
@@ -1957,8 +2628,19 @@ fn admin(
     q: roxmltree::Node,
     out: &mut ModuleResult,
 ) {
+    admin_with_authority(r, room, jid, iq, q, out, false)
+}
+fn admin_with_authority(
+    r: &mut Room,
+    room: &str,
+    jid: &str,
+    iq: roxmltree::Node,
+    q: roxmltree::Node,
+    out: &mut ModuleResult,
+    component_authority: bool,
+) {
     let moderator = r.occupants.get(jid).is_some_and(|o| o.role == "moderator");
-    if !r.privileged(jid) && !moderator {
+    if !component_authority && !r.privileged(jid) && !moderator {
         out.replies.push(iq_error(iq, "forbidden"));
         return;
     }
@@ -1972,7 +2654,10 @@ fn admin(
     }
     let item = items[0];
     let aff = item.attribute("affiliation");
-    if !r.privileged(jid) && (aff.is_some() || item.attribute("role") == Some("moderator")) {
+    if !component_authority
+        && !r.privileged(jid)
+        && (aff.is_some() || item.attribute("role") == Some("moderator"))
+    {
         out.replies.push(iq_error(iq, "forbidden"));
         return;
     }
@@ -2026,13 +2711,14 @@ fn admin(
             return;
         }
         let old = r.affiliation(target);
-        if r.affiliation(jid) != "owner"
+        if !component_authority
+            && r.affiliation(jid) != "owner"
             && (matches!(old.as_str(), "owner" | "admin") || matches!(aff, "owner" | "admin"))
         {
             out.replies.push(iq_error(iq, "forbidden"));
             return;
         }
-        if old == "owner" && aff != "owner" {
+        if !component_authority && old == "owner" && aff != "owner" {
             let map = r.frozen.get("_affiliations").unwrap_or(&r.frozen);
             if map
                 .as_object()
@@ -2503,4 +3189,32 @@ fn archive_presence(
         },
     )?;
     Ok(())
+}
+
+fn kickable_error(stanza: roxmltree::Node) -> bool {
+    let condition = stanza
+        .children()
+        .find(|n| n.has_tag_name("error"))
+        .and_then(|n| {
+            n.children().find(|n| {
+                n.is_element()
+                    && n.tag_name().namespace() == Some("urn:ietf:params:xml:ns:xmpp-stanzas")
+                    && n.tag_name().name() != "text"
+            })
+        })
+        .map(|n| n.tag_name().name());
+    matches!(
+        condition,
+        None | Some(
+            "gone"
+                | "internal-server-error"
+                | "item-not-found"
+                | "jid-malformed"
+                | "recipient-unavailable"
+                | "redirect"
+                | "remote-server-not-found"
+                | "remote-server-timeout"
+                | "service-unavailable"
+        )
+    )
 }

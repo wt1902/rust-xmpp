@@ -8,11 +8,14 @@ fn send(m: &mut Muc, jid: &str, packet: &str) -> ModuleResult {
 fn setup(defaults: serde_json::Value) -> (tempfile::TempDir, Muc) {
     let root = tempfile::tempdir().unwrap();
     let mut m = Muc::new(root.path().into(), "rooms.example.org".into());
+    m.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     m.set_defaults(defaults);
     send(
         &mut m,
         "alice@example.org/r",
-        &format!("<presence to='{ROOM}/Alice'/>"),
+        &format!(
+            "<presence to='{ROOM}/Alice'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     (root, m)
 }
@@ -22,7 +25,9 @@ fn restricted_private_messages_allow_self_and_optional_moderators() {
     send(
         &mut m,
         "bob@example.org/r",
-        &format!("<presence to='{ROOM}/Bob'/>"),
+        &format!(
+            "<presence to='{ROOM}/Bob'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     let denied = send(
         &mut m,
@@ -58,7 +63,9 @@ fn broadcast_roles_hide_visitors_and_configuration_announces_transition() {
     let join = send(
         &mut m,
         "bob@example.org/r",
-        &format!("<presence to='{ROOM}/Bob'/>"),
+        &format!(
+            "<presence to='{ROOM}/Bob'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     assert!(join.deliveries.is_empty());
     assert!(
@@ -99,11 +106,12 @@ fn language_config_sections_discovery_and_native_affiliation_hats() {
     frozen.set("_affiliation_data", hats);
     std::fs::write(path, rust_xmpp::storage::serialize(&frozen).unwrap()).unwrap();
     let mut m = Muc::new(root.path().into(), "rooms.example.org".into());
+    m.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     let join = send(
         &mut m,
         "alice@example.org/r",
         &format!(
-            "<presence to='{ROOM}/Alice'><hats xmlns='urn:xmpp:hats:0'><hat uri='fake'/></hats></presence>"
+            "<presence to='{ROOM}/Alice'><x xmlns='http://jabber.org/protocol/muc'/><hats xmlns='urn:xmpp:hats:0'><hat uri='fake'/></hats></presence>"
         ),
     );
     let presence = join.replies.iter().find(|p| p.contains("110")).unwrap();
@@ -135,7 +143,9 @@ fn messages_cannot_spoof_room_identity_hats_or_occupant_identifiers() {
     send(
         &mut m,
         "bob@example.org/r",
-        &format!("<presence to='{ROOM}/Bob'/>"),
+        &format!(
+            "<presence to='{ROOM}/Bob'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     for (kind, to) in [
         ("groupchat", ROOM.to_string()),
@@ -159,11 +169,17 @@ fn messages_cannot_spoof_room_identity_hats_or_occupant_identifiers() {
 fn disabled_optional_vcard_and_occupant_ids_are_not_advertised_or_emitted() {
     let root = tempfile::tempdir().unwrap();
     let mut m = Muc::new(root.path().into(), "rooms.example.org".into());
-    m.set_component_options(json!({"muc_vcard":false,"muc_occupant_id":false}), false);
+    m.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
+    m.set_component_options(
+        json!({"muc_room_locking":false,"muc_vcard":false,"muc_occupant_id":false}),
+        false,
+    );
     let join = send(
         &mut m,
         "alice@example.org/r",
-        &format!("<presence to='{ROOM}/Alice'/>"),
+        &format!(
+            "<presence to='{ROOM}/Alice'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     assert!(join.replies.iter().all(|p| !p.contains("occupant-id")));
     let disco = send(
@@ -186,11 +202,14 @@ fn disabled_optional_vcard_and_occupant_ids_are_not_advertised_or_emitted() {
 fn mam_all_rooms_presence_logging_public_queries_and_optional_totals() {
     let root = tempfile::tempdir().unwrap();
     let mut m = Muc::new(root.path().into(), "rooms.example.org".into());
-    m.set_component_options(json!({"muc_log_all_rooms":true,"muc_log_by_default":false,"muc_log_presences":true,"muc_log_include_total":false}),true);
+    m.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
+    m.set_component_options(json!({"muc_room_locking":false,"muc_log_all_rooms":true,"muc_log_by_default":false,"muc_log_presences":true,"muc_log_include_total":false}),true);
     send(
         &mut m,
         "alice@example.org/r",
-        &format!("<presence to='{ROOM}/Alice'/>"),
+        &format!(
+            "<presence to='{ROOM}/Alice'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     send(
         &mut m,
@@ -258,10 +277,13 @@ fn offline_reserved_affiliates_follow_anonymity_and_roominfo_counts_nicknames() 
     );
     std::fs::write(path, rust_xmpp::storage::serialize(&frozen).unwrap()).unwrap();
     let mut m = Muc::new(root.path().into(), "rooms.example.org".into());
+    m.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     let guest = send(
         &mut m,
         "bob@example.org/r",
-        &format!("<presence to='{ROOM}/Bob'/>"),
+        &format!(
+            "<presence to='{ROOM}/Bob'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     let offline = guest
         .replies
@@ -279,7 +301,9 @@ fn offline_reserved_affiliates_follow_anonymity_and_roominfo_counts_nicknames() 
     let owner = send(
         &mut m,
         "alice@example.org/r",
-        &format!("<presence to='{ROOM}/Alice'/>"),
+        &format!(
+            "<presence to='{ROOM}/Alice'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     assert!(
         owner
@@ -290,7 +314,9 @@ fn offline_reserved_affiliates_follow_anonymity_and_roominfo_counts_nicknames() 
     send(
         &mut m,
         "bob@example.org/second",
-        &format!("<presence to='{ROOM}/Bob'/>"),
+        &format!(
+            "<presence to='{ROOM}/Bob'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     let disco = send(
         &mut m,
@@ -309,6 +335,7 @@ fn recovery_claim_is_durable_and_unrelated_disconnect_keeps_temporary_claims() {
     first.checkpoint_live().unwrap();
     drop(first);
     let mut recovered = Muc::new(root.path().into(), "rooms.example.org".into());
+    recovered.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     recovered.prepare_recovery().unwrap();
     recovered.disconnect("unrelated@example.org/r");
     let restored = recovered
@@ -321,12 +348,17 @@ fn recovery_claim_is_durable_and_unrelated_disconnect_keeps_temporary_claims() {
             .any(|p| p.contains("110") && p.contains("role='moderator'"))
     );
     drop(recovered);
-    // No new checkpoint: an already consumed claim cannot resurrect stale role.
+    // Authenticated restoration committed a new live membership checkpoint.
     let mut again = Muc::new(root.path().into(), "rooms.example.org".into());
+    again.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     again.prepare_recovery().unwrap();
-    let absent = again.restore_for_session("alice@example.org/r").unwrap();
-    assert!(absent.replies.is_empty());
-    assert!(absent.deliveries.is_empty());
+    let restored_again = again.restore_for_session("alice@example.org/r").unwrap();
+    assert!(
+        restored_again
+            .replies
+            .iter()
+            .any(|p| p.contains("/Alice") && p.contains("110") && p.contains("role='moderator'"))
+    );
 }
 #[test]
 fn large_optional_history_does_not_prevent_checkpointing_membership() {
@@ -347,35 +379,44 @@ fn explicit_new_nickname_consumes_old_proof_and_pending_nicks_are_reserved() {
     send(
         &mut first,
         "bob@example.org/r",
-        &format!("<presence to='{ROOM}/Bob'/>"),
+        &format!(
+            "<presence to='{ROOM}/Bob'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     first.checkpoint_live().unwrap();
     drop(first);
     let mut recovered = Muc::new(root.path().into(), "rooms.example.org".into());
+    recovered.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     recovered.prepare_recovery().unwrap();
     let stolen = send(
         &mut recovered,
         "mallory@example.org/r",
-        &format!("<presence to='{ROOM}/Bob'/>"),
+        &format!(
+            "<presence to='{ROOM}/Bob'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     assert!(stolen.replies.iter().any(|p| p.contains("conflict")));
     let explicit = send(
         &mut recovered,
         "alice@example.org/r",
-        &format!("<presence to='{ROOM}/Changed'/>"),
+        &format!(
+            "<presence to='{ROOM}/Changed'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
     );
     assert!(explicit.replies.iter().any(|p| p.contains("110")));
     // Temporary room config and Bob's claim survive Alice's ordinary join.
     drop(recovered);
     let mut again = Muc::new(root.path().into(), "rooms.example.org".into());
+    again.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     again.prepare_recovery().unwrap();
+    let alice = again.restore_for_session("alice@example.org/r").unwrap();
     assert!(
-        again
-            .restore_for_session("alice@example.org/r")
-            .unwrap()
+        alice
             .replies
-            .is_empty()
+            .iter()
+            .any(|p| p.contains("/Changed") && p.contains("110"))
     );
+    assert!(alice.replies.iter().all(|p| !p.contains("/Alice")));
     assert!(
         again
             .restore_for_session("bob@example.org/r")

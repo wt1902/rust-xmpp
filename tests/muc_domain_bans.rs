@@ -12,10 +12,11 @@ fn native_domain_bans_block_remote_users_but_allow_explicit_members() {
     let raw = storage::parse(b"return {_jid='room@rooms.test'; _data={persistent=true}; ['owner@test']='owner'; ['remote.test']='outcast'; ['member@remote.test']='member'}").unwrap();
     storage::save(temp.path(), "rooms.test", Some("room"), "config", &raw).unwrap();
     let mut muc = Muc::new(temp.path().into(), "rooms.test".into());
+    muc.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     let denied = send(
         &mut muc,
         "outsider@remote.test/client",
-        "<presence to='room@rooms.test/Outsider'/>",
+        "<presence to='room@rooms.test/Outsider'><x xmlns='http://jabber.org/protocol/muc'/></presence>",
     );
     assert!(
         denied.replies[0].contains("forbidden"),
@@ -25,7 +26,7 @@ fn native_domain_bans_block_remote_users_but_allow_explicit_members() {
     let admitted = send(
         &mut muc,
         "member@remote.test/client",
-        "<presence to='room@rooms.test/Member'/>",
+        "<presence to='room@rooms.test/Member'><x xmlns='http://jabber.org/protocol/muc'/></presence>",
     );
     assert!(!admitted.replies.iter().any(|p| p.contains("type='error'")));
     assert!(
@@ -40,20 +41,21 @@ fn native_domain_bans_block_remote_users_but_allow_explicit_members() {
 fn applying_domain_ban_removes_remote_occupants_and_blocks_rejoin() {
     let temp = tempfile::tempdir().unwrap();
     let mut muc = Muc::new(temp.path().into(), "rooms.test".into());
+    muc.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     send(
         &mut muc,
         "owner@test/r",
-        "<presence to='room@rooms.test/Owner'/>",
+        "<presence to='room@rooms.test/Owner'><x xmlns='http://jabber.org/protocol/muc'/></presence>",
     );
     send(
         &mut muc,
         "remote@remote.test/r",
-        "<presence to='room@rooms.test/Remote'/>",
+        "<presence to='room@rooms.test/Remote'><x xmlns='http://jabber.org/protocol/muc'/></presence>",
     );
     send(
         &mut muc,
         "other@allowed.test/r",
-        "<presence to='room@rooms.test/Other'/>",
+        "<presence to='room@rooms.test/Other'><x xmlns='http://jabber.org/protocol/muc'/></presence>",
     );
     let banned = send(
         &mut muc,
@@ -79,7 +81,7 @@ fn applying_domain_ban_removes_remote_occupants_and_blocks_rejoin() {
         send(
             &mut muc,
             "remote@remote.test/new",
-            "<presence to='room@rooms.test/Remote'/>"
+            "<presence to='room@rooms.test/Remote'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
         )
         .replies[0]
             .contains("forbidden")

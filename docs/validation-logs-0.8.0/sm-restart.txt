@@ -1,0 +1,1 @@
+PASS: TLS legacy/SASL2 durable SM after SIGKILL/SIGTERM, counters, ack pruning, at-least-once pending replay, owner/token/h rejection, transport/resource conflict, MUC activation/offline fanout, grace expiry and account deletion/recreation revocation

@@ -125,8 +125,9 @@ fn archive_history_and_permissions() {
 fn nick_invite_destroy_and_local_creation() {
     let t = tempfile::tempdir().unwrap();
     let mut m = Muc::new(t.path().into(), "rooms.test".into());
+    m.set_component_options(serde_json::json!({"restrict_room_creation":"local"}), false);
     m.set_local_domain("test".into());
-    assert!(join(&mut m, "external@else/a", "External").replies[0].contains("forbidden"));
+    assert!(join(&mut m, "external@else/a", "External").replies[0].contains("not-allowed"));
     join(&mut m, "alice@test/a", "Alice");
     unlock(&mut m);
     let renamed = join(&mut m, "alice@test/a", "NewName");

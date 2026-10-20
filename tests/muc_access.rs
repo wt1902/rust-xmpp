@@ -10,7 +10,13 @@ fn send(muc: &mut Muc, jid: &str, packet: &str) -> ModuleResult {
 }
 
 fn join(muc: &mut Muc, jid: &str, nick: &str) -> ModuleResult {
-    send(muc, jid, &format!("<presence to='r@rooms.test/{nick}'/>"))
+    send(
+        muc,
+        jid,
+        &format!(
+            "<presence to='r@rooms.test/{nick}'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
+    )
 }
 
 fn role(muc: &mut Muc, actor: &str, nick: &str, role: &str) -> ModuleResult {
@@ -27,6 +33,7 @@ fn role(muc: &mut Muc, actor: &str, nick: &str, role: &str) -> ModuleResult {
 fn moderators_cannot_kick_or_demote_other_moderators() {
     let temp = tempfile::tempdir().unwrap();
     let mut muc = Muc::new(temp.path().into(), "rooms.test".into());
+    muc.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     join(&mut muc, "owner@test/r", "Owner");
     join(&mut muc, "bob@test/r", "Bob");
     join(&mut muc, "carol@test/r", "Carol");
@@ -67,6 +74,7 @@ fn binary_occupant_id_salt_survives_saves_and_restarts() {
     let mut ids = Vec::new();
     for _ in 0..2 {
         let mut muc = Muc::new(temp.path().into(), "rooms.test".into());
+        muc.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
         let result = join(&mut muc, "owner@test/r", "Owner");
         let packet = result
             .replies
@@ -99,6 +107,7 @@ fn nested_affiliations_do_not_fall_back_to_obsolete_flat_entries() {
     let raw = storage::parse(b"return {_jid='r@rooms.test'; _data={persistent=true; members_only=true}; _affiliations={['owner@test']='owner'; ['member@test']='member'}; ['member@test']='owner'}").unwrap();
     storage::save(temp.path(), "rooms.test", Some("r"), "config", &raw).unwrap();
     let mut muc = Muc::new(temp.path().into(), "rooms.test".into());
+    muc.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     join(&mut muc, "owner@test/r", "Owner");
     let result = send(
         &mut muc,
@@ -109,5 +118,6 @@ fn nested_affiliations_do_not_fall_back_to_obsolete_flat_entries() {
     assert!(join(&mut muc, "member@test/r", "Member").replies[0].contains("registration-required"));
     drop(muc);
     let mut muc = Muc::new(temp.path().into(), "rooms.test".into());
+    muc.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     assert!(join(&mut muc, "member@test/r", "Member").replies[0].contains("registration-required"));
 }

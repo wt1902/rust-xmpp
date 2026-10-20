@@ -1,59 +1,50 @@
-# Проверка 0.7.9
+# Проверка 0.8.0
 
-Linux x86_64, Rust 1.99.1, 2026-10-20. Полный итоговый прогон:
-validation-logs-0.7.9/verify.txt. Структурированный отчёт: validation-results.json.
+Linux x86_64, Rust1.99.1, 2026-10-20. Итоговый полный прогон:
+[verify.txt](validation-logs-0.8.0/verify.txt).
+Структурированный отчёт: [validation-results.json](validation-results.json).
 
 | Проверка | Результат |
 |---|---|
-| cargo test --locked | 265 passed, 0 failed, 11 ignored |
+| Rust tests | 293 passed, 0 failed, 11 ignored |
 | fmt / Clippy all-targets -D warnings / release | Успешно |
-| Upload migration | local → S3 A → S3 B → local, SHA-256, прежние URL/JWT/HEAD, native metadata/source, dry run, lock, прерывание/resume и startup barrier — успешно |
-| S3 recovery | Intent до initiation, отсутствие UploadId, pagination и exact-key cleanup без удаления чужого prefix, ambiguous completion, quarantine и late commit — успешно |
-| Конкурентный PUT | Регрессия: захват слота читает свежие completion/quarantine flags атомарно — успешно |
-| Реальная передача через MinIO | 10,737,418,240 байт PUT и полный GET; SHA-256 совпал; объект: 1280 multipart parts |
-| Время большого файла | PUT 48.453 с; GET 13.710 с |
-| Выборочный RSS каждые 50 мс | Rust 101.14 MiB; клиент 23.21 MiB; MinIO 475.84 MiB |
-| MinIO дополнительные проверки | Range за 4/5 GiB и хвост, restart/read/reuse409, SIGKILL после сохранённой части и abort при recovery — успешно |
+| MUC SIGKILL через настоящий STARTTLS | temporary/persistent комнаты, несколько ресурсов, show/status/roles, порядок истории, подтверждённые leave/kick/demotion/password/config, фиксированный/custom grace — успешно |
+| SM между процессами | SIGKILL/SIGTERM, legacy SASL/SASL2, counters, ack/replay, неверные owner/token/h, resource conflict — успешно |
+| MUC offline fanout | До аутентификации Bob новое сообщение Alice уже в приватной durable SM-очереди; после resume доставка без history delay — успешно |
+| Отзыв SM | Удаление аккаунта подтверждается; после повторного создания старый SM-токен отклоняется |
+| MUC+SM нагрузка | 100 аккаунтов, 500 TLS-ресурсов, 10 комнат, 25000 join presence; SIGKILL и resume представителей всех комнат — успешно |
 | Native reference | 8 module/storage + 1 TLS/SASL EXTERNAL federation — успешно |
-| Нагрузка | 100 аккаунтов, 500 TLS клиентов, 5000 ping,5000 сообщений, 10000 MAM; failures=[] |
+| Остальные сетевые регрессии | Android SASL, WSS/BOSH/proxy/altconnect, PEP/push/preauth, resource policies, upload/S3/migration — успешно |
 
-Итоговая сборка SHA-256: 24c0dca637e7ce4e238ef6becad16bb5a18a33546554b0eecf310fd8927f021c. MinIO report автоматически записывает
-тот же hash. Большая передача повторена после последних изменений сервера.
-Полный прогон включает исправление гонки устаревшего snapshot при захвате слота.
-Отдельные первые прогоны нашли и помогли исправить нестабильный fingerprint
-миграции и пропуск немедленного reconciliation под ещё активным claim.
-Финальный результат не содержит этих ошибок. RSS — выборочный максимум, а не
-гарантия точного пика для любой нагрузки. Временные 10 GiB объекты после проверки удалены.
+Нагрузка MUC+SM: connect 5.193 с; join 46.703 с;
+полный сценарий 78.857 с; выборочный peak RSS 41.26 MiB.
+Детали fanout, CPU, slots и replay: [muc-sm-load.json](validation-logs-0.8.0/muc-sm-load.json).
+Это loopback smoke measurement, а не гарантия production capacity.
 
-## Точная граница MinIO проверки
+SHA-256 итоговой release-сборки: `74882319fcb467dd1e1813ab61e85441ffd3dae2f9f7961b28fd98ec5da7c89a`.
+Основной прогон: `XMPP_LOAD_CHECK=1 bash scripts/verify-local.sh`; native env описан
+в scripts/prosody_compat/README.md. В этой среде дополнительно применены
+CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=0, CARGO_PROFILE_TEST_DEBUG=0.
 
-Использован настоящий upstream MinIO RELEASE.2025-04-22T22-12-26Z, собранный
-Go1.24.3 из официального GitHub archive. Немодифицированная сборка в этой среде
-не запускается: net.Interfaces/netlinkrib запрещён с EPERM. Тестовая сборка
-добавляет только fallback на 127.0.0.1 для этой ошибки перечисления интерфейсов.
-S3, authentication, multipart и storage code не изменены. Это не qualification
-немодифицированного MinIO в обычной production среде.
+Первый основной прогон остановился на пятисекундном readiness timeout нового
+нагрузочного теста после успешных обычных и сетевых проверок. В самом тесте
+таймаут увеличен до60секунд; нагрузка500 повторена с той же release-сборкой,
+а native-проверки выполнены отдельно. verify.txt объединяет успешные части
+этих запусков; первоначальный лог сохранён в initial-load-timeout.txt.
 
-Точный diff, hashes исходного архива, обеих сборок и adapter:
-validation-logs-0.7.9/minio-sandbox-compat.patch и minio-provenance.json.
-Полный результат и 1280-part ETag: validation-logs-0.7.9/minio.json.
-Проверен single-node loopback с HTTP к MinIO и CA-verified HTTPS к gateway.
-AWS account, distributed MinIO и production сеть не проверены.
+В процессе проверки исправлены потеря сохранённых presence/history, защита
+истёкших recovery claims, отсутствие успешного ответа при удалении аккаунта,
+учёт stanza до SM enable и потеря MUC fanout до подключения другого участника.
+Первоначальный тест последнего случая принимал позднюю историю за доставку;
+итоговый тест проверяет именно private pending queue до аутентификации.
 
-## Повторение
+Реальные TCP/TLS-сокеты после завершения процесса отсутствуют: требуется новое
+защищённое аутентифицированное соединение. SM допускает повторную доставку при
+неопределённом сетевом результате; это не exactly-once транзакция между всеми
+хранилищами и сетью. Известные встроенные возможности MUC перенесены, произвольные
+community Lua-модули не исполняются. Пределы записей и порядок восстановления:
+[MUC-RECOVERY.md](MUC-RECOVERY.md). Полная замена всей установки и проверка
+реальными клиентами этим не заявляются: [COMPATIBILITY.md](COMPATIBILITY.md).
 
-Полный прогон: XMPP_LOAD_CHECK=1 bash scripts/verify-local.sh с native env
-согласно scripts/prosody_compat/README.md. В этой среде дополнительно применены
-CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0.
-MinIO отдельно: python3 tests/upload_minio_network.py --binary target/release/rust-xmpp
---minio /path/to/minio --report /tmp/minio-report.json. При test adapter передайте
---minio-compat-patch /path/to/patch, чтобы он попал в результат. Можно задать
-MINIO_BINARY перед verify-local.sh для opt-in передачи10 GiB; нужны место и MinIO executable.
-
-Инструкции migration/recovery: HTTP-UPLOAD.md. Source всегда сохраняется;
-незавершённая миграция блокирует startup, неопределённый Complete quarantines
-только свой slot. Потеря ownership metadata не позволяет безопасно удалить
-произвольные чужие multiparts; bucket lifecycle остаётся дополнительной защитой.
-Сетевой сбой с HEAD404 не выдаётся за доказанную неудачу удалённого commit.
-Полная замена Prosody, настоящие production клиенты и DNSSEC этим не заявляются;
-общие границы — COMPATIBILITY.md.
+10GiB upload в0.8.0 не повторялся. Исторические испытания local/MinIO находятся
+в VALIDATION-0.7.8.md и VALIDATION-0.7.9.md; их результаты не приписываются новой сборке.

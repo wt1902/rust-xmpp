@@ -66,14 +66,14 @@ pub struct RoomHistory {
 impl RoomHistory {
     pub fn new(capacity: usize) -> Self {
         Self {
-            capacity,
+            capacity: capacity.min(4096),
             default_messages: 20,
             entries: VecDeque::new(),
         }
     }
     pub fn set_capacity(&mut self, capacity: usize) {
-        self.capacity = capacity;
-        while self.entries.len() > capacity {
+        self.capacity = capacity.min(4096);
+        while self.entries.len() > self.capacity {
             self.entries.pop_front();
         }
     }
@@ -90,7 +90,7 @@ impl RoomHistory {
     /// Add one room broadcast, before per-recipient routing. Subject-only changes
     /// are sent separately on join and do not consume discussion history slots.
     pub fn push(&mut self, stanza: &str, timestamp: i64) {
-        if self.capacity == 0 {
+        if self.capacity == 0 || stanza.len() > 16 * 1024 {
             return;
         }
         let Ok(doc) = roxmltree::Document::parse(stanza) else {
@@ -132,7 +132,7 @@ impl RoomHistory {
     }
     /// Restore a snapshot stanza that already carries its original delay.
     pub fn restore_last_message(&mut self, stanza: &str, timestamp: i64) {
-        if self.capacity == 0 {
+        if self.capacity == 0 || stanza.len() > 16 * 1024 {
             return;
         }
         let Ok(doc) = roxmltree::Document::parse(stanza) else {
@@ -146,6 +146,60 @@ impl RoomHistory {
             stanza: stanza.into(),
             timestamp,
         });
+    }
+
+    /// Lossless bounded crash snapshot, including original delay stamps.
+    pub fn checkpoint(&self) -> crate::storage::LuaValue {
+        use crate::storage::LuaValue as V;
+        let mut value = V::table();
+        for (i, entry) in self.entries.iter().enumerate() {
+            let mut item = V::table();
+            item.set("stanza", entry.stanza.clone().into());
+            item.set("timestamp", V::Integer(entry.timestamp));
+            value.set_key(V::Integer(i as i64 + 1), item);
+        }
+        value
+    }
+    pub fn restore_checkpoint(&mut self, value: &crate::storage::LuaValue) {
+        self.entries.clear();
+        // Lua pairs iteration is not sequence order, including numeric keys.
+        let mut ordered = value
+            .entries()
+            .iter()
+            .filter_map(|(key, item)| {
+                key.as_i64()
+                    .filter(|index| *index > 0)
+                    .map(|index| (index, item))
+            })
+            .collect::<Vec<_>>();
+        ordered.sort_by_key(|(index, _)| *index);
+        for (_, item) in ordered.into_iter().take(4096) {
+            let Some(stanza) = item
+                .get("stanza")
+                .and_then(crate::storage::LuaValue::as_str)
+            else {
+                continue;
+            };
+            let Some(timestamp) = item
+                .get("timestamp")
+                .and_then(crate::storage::LuaValue::as_i64)
+            else {
+                continue;
+            };
+            if stanza.len() > 16 * 1024 {
+                continue;
+            }
+            let Ok(doc) = roxmltree::Document::parse(stanza) else {
+                continue;
+            };
+            if is_historic(doc.root_element()) {
+                self.entries.push_back(Entry {
+                    stanza: stanza.into(),
+                    timestamp,
+                });
+            }
+        }
+        self.set_capacity(self.capacity);
     }
 
     pub fn replay(&self, _room: &str, to: &str, presence: &str, now: i64) -> Vec<String> {

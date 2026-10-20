@@ -1,6 +1,6 @@
 [package]
 name = "rust-xmpp"
-version = "0.7.9"
+version = "0.8.0"
 edition = "2024"
 description = "Experimental Rust XMPP server with Prosody-compatible storage"
 license = "MIT"

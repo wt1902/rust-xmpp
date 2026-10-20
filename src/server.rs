@@ -368,7 +368,19 @@ impl Runtime {
         }
         let mut rooms = self.mucs.lock().unwrap();
         for muc in rooms.values_mut() {
-            let result = muc.disconnect(jid);
+            let result = match muc.disconnect_durable(jid) {
+                Ok(result) => result,
+                Err(_) => {
+                    self.logger.event(
+                        Level::Error,
+                        "muc",
+                        None,
+                        "checkpoint-failed",
+                        &[("reason", "durable-disconnect-failed")],
+                    );
+                    continue;
+                }
+            };
             for (to, xml) in result.deliveries {
                 self.hub.deliver(&to, &xml);
             }
@@ -499,6 +511,7 @@ fn refresh_push_session(rt: &Runtime, session: &SharedSession) -> Result<()> {
     s.push_identifier = identifier;
     s.first_push_sent = false;
     s.timeout = Duration::from_secs(timeout);
+    s.checkpoint()?;
     Ok(())
 }
 fn message_pushes(
@@ -556,6 +569,17 @@ fn reset_push_watchdog(rt: &Runtime, user: &str, identifier: &str) {
         let mut s = session.lock().unwrap();
         if s.owner == owner && s.push_identifier.as_deref() == Some(identifier) {
             s.first_important_push(timeout);
+            if s.checkpoint().is_err() {
+                s.closed = true;
+                s.cancel.notify_one();
+                rt.logger.event(
+                    Level::Error,
+                    "smacks",
+                    None,
+                    "checkpoint-failed",
+                    &[("reason", "push-watchdog-state")],
+                );
+            }
         }
     }
 }
@@ -580,6 +604,17 @@ fn remove_push_sessions(rt: &Runtime) {
             s.first_push_sent = false;
             if s.expires.is_some() {
                 s.expires = Some(Instant::now() + timeout);
+            }
+            if s.checkpoint().is_err() {
+                s.closed = true;
+                s.cancel.notify_one();
+                rt.logger.event(
+                    Level::Error,
+                    "smacks",
+                    None,
+                    "checkpoint-failed",
+                    &[("reason", "push-removal-state")],
+                );
             }
         }
     }
@@ -730,9 +765,44 @@ pub async fn serve(path: &Path) -> Result<()> {
     for (name, host) in &c.hosts {
         match host.component.as_deref() {
             Some("muc") => {
+                let component_modules = c.modules(name)?;
+                let unsupported = component_modules
+                    .iter()
+                    .filter(|module| {
+                        !implemented.contains(&module.as_str())
+                            && !["muc", "muc_mam", "muc_vcard", "muc_occupant_id", "adhoc"]
+                                .contains(&module.as_str())
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                ensure!(
+                    unsupported.is_empty(),
+                    "MUC modules not integrated for {}: {}",
+                    name,
+                    unsupported.join(", ")
+                );
                 let mut muc = crate::muc::Muc::new(data.clone(), name.clone());
                 let mut options = c.global.clone();
                 options.extend(host.options.clone());
+                for module in ["muc_vcard", "muc_occupant_id"] {
+                    let disabled = c
+                        .global
+                        .get("modules_disabled")
+                        .and_then(serde_json::Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .chain(
+                            host.options
+                                .get("modules_disabled")
+                                .and_then(serde_json::Value::as_array)
+                                .into_iter()
+                                .flatten(),
+                        )
+                        .any(|value| value.as_str() == Some(module));
+                    if disabled {
+                        options.insert(module.into(), serde_json::Value::Bool(false));
+                    }
+                }
                 muc.set_component_options(
                     serde_json::Value::Object(options),
                     c.modules(name)?.contains("muc_mam"),
@@ -822,6 +892,46 @@ pub async fn serve(path: &Path) -> Result<()> {
         }
     }
     let upload_routes = upload_routes(&c, &uploads)?;
+    let hub = if c.modules(&domain)?.contains("smacks") {
+        Hub::persistent(
+            data.join(crate::storage::encode_name(&domain))
+                .join("rust_smacks"),
+        )?
+    } else {
+        Hub::default()
+    };
+    // A persisted, unexpired SM session is still a logical room occupant while
+    // its transport is offline. Restore routing before accepting any clients so
+    // room traffic queues durably even before that occupant reauthenticates.
+    // Ordinary MUC recovery claims never establish a trusted session themselves.
+    for session in hub.all() {
+        let (full, owner) = {
+            let state = session.lock().unwrap();
+            (state.jid.clone(), state.owner.clone())
+        };
+        let user = owner
+            .strip_suffix(&format!("@{domain}"))
+            .context("durable session belongs to another host")?;
+        let account = crate::storage::load(&data, &domain, Some(user), "accounts")?;
+        if !account.as_ref().is_some_and(|account| {
+            account.get("disabled") != Some(&crate::storage::LuaValue::Bool(true))
+        }) {
+            hub.kick_owner_checked(&owner)?;
+            continue;
+        }
+        for muc in mucs.values_mut() {
+            // Membership continued across the process boundary: synthetic join
+            // presence and history must not be replayed as new room activity.
+            let _ = muc.restore_for_session(&full)?;
+        }
+    }
+    logger.event(
+        Level::Info,
+        "smacks",
+        None,
+        "durable-sessions-loaded",
+        &[("count", &hub.all().len().to_string())],
+    );
     let runtime = Runtime {
         _data_guard: data_guard,
         domain: domain.clone(),
@@ -848,7 +958,7 @@ pub async fn serve(path: &Path) -> Result<()> {
             }
         }),
         config: Arc::new(c.clone()),
-        hub: Hub::default(),
+        hub,
         mucs: Arc::new(Mutex::new(mucs)),
         uploads: Arc::new(uploads),
         started: Instant::now(),
@@ -928,7 +1038,7 @@ pub async fn serve(path: &Path) -> Result<()> {
                         (s.owner == jid).then(|| s.jid.clone())
                     })
                     .collect::<Vec<_>>();
-                rt.hub.kick_owner(jid);
+                rt.hub.kick_owner_checked(jid)?;
                 for j in old {
                     rt.disconnected(&j);
                 }
@@ -1131,6 +1241,9 @@ pub async fn serve(path: &Path) -> Result<()> {
     let mut maintenance = tokio::time::interval(Duration::from_secs(300));
     let mut maintenance_task: Option<tokio::task::JoinHandle<()>> = None;
     let mut tick = tokio::time::interval(Duration::from_secs(1));
+    let heartbeat_seconds = (number(&c, &domain, "smacks_hibernation_time", 300) / 4).clamp(1, 10);
+    let mut heartbeat = tokio::time::interval(Duration::from_secs(heartbeat_seconds));
+    let mut heartbeat_task: Option<tokio::task::JoinHandle<()>> = None;
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     let mut hangup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
     loop {
@@ -1151,6 +1264,18 @@ pub async fn serve(path: &Path) -> Result<()> {
                         if !matches!(tokio::task::spawn_blocking(move || maintenance_run(&rt)).await, Ok(Ok(()))) {
                             log.event(Level::Error, "maintenance", None, "maintenance-failed", &[("reason", "storage-or-worker-error")]);
                         }
+                    }));
+                }
+            },
+            _ = heartbeat.tick() => {
+                if heartbeat_task.as_ref().is_none_or(|task| task.is_finished()) {
+                    let rt = runtime.clone();
+                    heartbeat_task = Some(tokio::task::spawn_blocking(move || {
+                        let result = rt.hub.checkpoint_live().and_then(|_| {
+                            for muc in rt.mucs.lock().unwrap().values_mut() { muc.checkpoint_durable()?; }
+                            Ok(())
+                        });
+                        if result.is_err() { rt.logger.event(Level::Error, "recovery", None, "heartbeat-checkpoint-failed", &[]); }
                     }));
                 }
             },
@@ -1180,6 +1305,7 @@ pub async fn serve(path: &Path) -> Result<()> {
     runtime
         .stopping
         .store(true, std::sync::atomic::Ordering::Release);
+    runtime.hub.freeze()?;
     for (domain, muc) in runtime.mucs.lock().unwrap().iter_mut() {
         muc.checkpoint_live()?;
         logger.event(
@@ -1224,7 +1350,9 @@ async fn csi_send<S: AsyncWrite + Unpin>(
     let output = if let Some(session) = session {
         let mut s = session.lock().unwrap();
         let owner = s.owner.clone();
-        s.csi.output(xml.into(), &owner, Instant::now())
+        let output = s.csi.output(xml.into(), &owner, Instant::now());
+        s.checkpoint()?;
+        output
     } else {
         vec![xml.into()]
     };
@@ -1237,9 +1365,14 @@ async fn csi_activity<S: AsyncWrite + Unpin>(
     stream: &mut S,
     session: Option<&SharedSession>,
 ) -> Result<()> {
-    let output = session
-        .map(|s| s.lock().unwrap().csi.activity(Instant::now()))
-        .unwrap_or_default();
+    let output = if let Some(s) = session {
+        let mut s = s.lock().unwrap();
+        let output = s.csi.activity(Instant::now());
+        s.checkpoint()?;
+        output
+    } else {
+        Vec::new()
+    };
     for xml in output {
         send(stream, &xml).await?;
     }
@@ -1252,11 +1385,7 @@ async fn emit<S: AsyncWrite + Unpin>(
 ) -> Result<()> {
     if let Some(session) = session {
         let mut session = session.lock().unwrap();
-        if session.sm {
-            ensure!(session.pending.len() < 4096, "unacknowledged stanza limit");
-            session.sent = session.sent.wrapping_add(1);
-            session.pending.push_back(xml.into());
-        }
+        session.track_outbound(xml)?;
     }
     csi_send(s, session, xml).await?;
     if session.is_some_and(|s| s.lock().unwrap().request_ack()) {
@@ -2058,7 +2187,11 @@ async fn apply<S: AsyncWrite + Unpin>(
     result: ModuleResult,
 ) -> Result<()> {
     for xml in result.replies {
-        emit(stream, session, &xml).await?;
+        if result.terminal_reply {
+            send(stream, &xml).await?;
+        } else {
+            emit(stream, session, &xml).await?;
+        }
     }
     for (to, xml) in result.deliveries {
         if let Ok(doc) = roxmltree::Document::parse(&xml)
@@ -2555,12 +2688,14 @@ fn dispatch_iq(
                         (s.owner == protocol::bare(jid)).then(|| s.jid.clone())
                     })
                     .collect::<Vec<_>>();
-                rt.hub.kick_owner(protocol::bare(jid));
+                rt.hub.kick_owner_checked(protocol::bare(jid))?;
                 for j in resources {
                     rt.disconnected(&j);
                 }
                 crate::account_modules::remove_account(&rt.data, &rt.domain, &user)?;
-                return Ok(Some(ModuleResult::reply(protocol::iq_result(iq, ""))));
+                let mut result = ModuleResult::reply(protocol::iq_result(iq, ""));
+                result.terminal_reply = true;
+                return Ok(Some(result));
             }
             let password = q
                 .children()
@@ -2745,7 +2880,7 @@ fn configure_bound_session(
     s: &SharedSession,
     client_id: Option<String>,
     csi_inactive: bool,
-) {
+) -> Result<()> {
     s.lock().unwrap().ack_limit =
         number(&rt.config, &rt.domain, "smacks_max_unacked", 100) as usize;
     s.lock().unwrap().client_id = client_id.clone();
@@ -2772,7 +2907,10 @@ fn configure_bound_session(
             .csi
             .configure(limit, Duration::from_secs_f64(delay), payloads);
     }
-    s.lock().unwrap().csi.set_inactive(csi_inactive);
+    let mut session = s.lock().unwrap();
+    session.csi.set_inactive(csi_inactive);
+    session.checkpoint()?;
+    Ok(())
 }
 fn bind2_client_uuid(id: &str) -> Option<uuid::Uuid> {
     uuid::Uuid::parse_str(id)
@@ -2833,6 +2971,32 @@ async fn close_retired_transport<S: AsyncWrite + Unpin>(
         return Ok(true);
     }
     Ok(false)
+}
+async fn restore_muc_after_resume<S: AsyncWrite + Unpin>(
+    stream: &mut S,
+    session: &SharedSession,
+    rt: &Runtime,
+    ctx: &ConnectionLog,
+) -> Result<()> {
+    let full = session.lock().unwrap().jid.clone();
+    let results = {
+        let mut rooms = rt.mucs.lock().unwrap();
+        rooms
+            .values_mut()
+            .map(|muc| muc.restore_for_session(&full))
+            .collect::<Result<Vec<_>>>()?
+    };
+    for result in results {
+        if !result.replies.is_empty() || !result.deliveries.is_empty() {
+            ctx.event(
+                Level::Info,
+                "muc-membership-restored",
+                &[("jid", &full), ("mode", "sm-resume")],
+            );
+        }
+        apply(stream, Some(session), rt, result).await?;
+    }
+    Ok(())
 }
 async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
     stream: &mut S,
@@ -2906,7 +3070,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             "resource-bound",
             &[("jid", &full), ("mode", "bind2")],
         );
-        configure_bound_session(&rt, &s, client_id.clone(), request.inactive);
+        configure_bound_session(&rt, &s, client_id.clone(), request.inactive)?;
         csi_inactive = request.inactive;
         let mut bound = String::new();
         {
@@ -2996,6 +3160,15 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
     } else {
         open(stream, &mut f, &rt.domain, &features).await?;
     }
+    if resumed_inline {
+        restore_muc_after_resume(
+            stream,
+            session.as_ref().context("resumed session missing")?,
+            &rt,
+            ctx,
+        )
+        .await?;
+    }
     if let Some(full) = &jid
         && !resumed_inline
         && (rt.enabled("vcard_legacy") || rt.enabled("bookmarks"))
@@ -3047,6 +3220,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         send(stream, &xml).await?;
                     }
                     session = Some(resumed);
+                    restore_muc_after_resume(stream, session.as_ref().unwrap(), &rt, ctx).await?;
                     ctx.phase = "session";
                     ctx.event(Level::Info, "session-resumed", &[("mode", "sm")]);
                     continue;
@@ -3082,10 +3256,14 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             && matches!(kind, "active" | "inactive")
         {
             csi_inactive = kind == "inactive";
-            let output = session
-                .as_ref()
-                .map(|s| s.lock().unwrap().csi.set_inactive(csi_inactive))
-                .unwrap_or_default();
+            let output = if let Some(s) = &session {
+                let mut s = s.lock().unwrap();
+                let output = s.csi.set_inactive(csi_inactive);
+                s.checkpoint()?;
+                output
+            } else {
+                Vec::new()
+            };
             for xml in output {
                 send(stream, &xml).await?;
             }
@@ -3096,12 +3274,8 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             "invalid stanza"
         );
         ctx.event(Level::Debug, "stanza-received", &[("kind", kind)]);
-        if let Some(s) = &session {
-            let mut s = s.lock().unwrap();
-            if s.sm {
-                s.handled = s.handled.wrapping_add(1);
-            }
-        }
+        let handled_session = session.clone();
+        async {
         if kind == "iq" {
             let typ = n.attribute("type").unwrap_or("");
             if matches!(typ, "result" | "error") {
@@ -3111,14 +3285,14 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         crate::pubsub::on_disco_result(&rt.data, &rt.domain, full, n)?
                 {
                     apply(stream, session.as_ref(), &rt, result).await?;
-                    continue;
+                    return Ok::<(), anyhow::Error>(());
                 }
                 if let Some(to) = n.attribute("to")
                     && !blocked(&rt, &user, full, to)?
                 {
                     let _ = route_delivery(&rt, to, &routed(n, full, to)).await;
                 }
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             let q = n.first_element_child().context("IQ payload missing")?;
             let ns = q.tag_name().namespace().unwrap_or("");
@@ -3164,7 +3338,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                             ),
                         )
                         .await?;
-                        configure_bound_session(&rt, &s, client_id.clone(), csi_inactive);
+                        configure_bound_session(&rt, &s, client_id.clone(), csi_inactive)?;
                         refresh_push_session(&rt, &s)?;
                         jid = Some(full);
                         session = Some(s);
@@ -3186,7 +3360,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         emit(stream, None, &protocol::iq_error(n, "conflict")).await?;
                     }
                 }
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             let full = jid.as_deref().context("binding required")?;
             if let Some(to) = n.attribute("to") {
@@ -3197,12 +3371,12 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         &protocol::iq_error(n, "service-unavailable"),
                     )
                     .await?;
-                    continue;
+                    return Ok::<(), anyhow::Error>(());
                 }
                 if to.contains('/') && to != full {
                     if rt.hub.get(to).is_some() {
                         rt.hub.deliver(to, &routed(n, full, to));
-                        continue;
+                        return Ok::<(), anyhow::Error>(());
                     } else if rt.owner(to).is_some() {
                         emit(
                             stream,
@@ -3210,7 +3384,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                             &protocol::iq_error(n, "recipient-unavailable"),
                         )
                         .await?;
-                        continue;
+                        return Ok::<(), anyhow::Error>(());
                     }
                 }
             }
@@ -3221,7 +3395,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             {
                 session.as_ref().unwrap().lock().unwrap().carbons = q.tag_name().name() == "enable";
                 emit(stream, session.as_ref(), &protocol::iq_result(n, "")).await?;
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             if ns == "jabber:iq:roster" && typ == "get" {
                 session.as_ref().unwrap().lock().unwrap().roster_interested = true;
@@ -3239,7 +3413,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                     )
                     .await?;
                 }
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             let result = match dispatch_iq(&rt, full, n) {
                 Ok(Some(r)) => r,
@@ -3273,7 +3447,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             };
             if let Some(result) = muc_result {
                 apply(stream, session.as_ref(), &rt, result).await?;
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             if kind == "presence" {
                 if rt.enabled("roster")
@@ -3281,7 +3455,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         crate::account_modules::subscription(&rt.data, &rt.domain, full, n)?
                 {
                     apply(stream, session.as_ref(), &rt, result).await?;
-                    continue;
+                    return Ok::<(), anyhow::Error>(());
                 }
                 if n.attribute("to").is_none() {
                     let avatar_xml = if rt.enabled("vcard_legacy") {
@@ -3379,26 +3553,26 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                             )?;
                         }
                     }
-                    continue;
+                    return Ok::<(), anyhow::Error>(());
                 }
             }
             let Some(to) = n.attribute("to") else {
-                continue;
+                return Ok::<(), anyhow::Error>(());
             };
             let local = rt.owner(to);
             if crate::account_modules::is_blocked(&rt.data, &rt.domain, &user, to)? {
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             if let Some(target_user) = &local
                 && crate::account_modules::is_blocked(&rt.data, &rt.domain, target_user, full)?
             {
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             let mut xml = routed(n, full, to);
             let mut sent_xml = xml.clone();
             if kind == "presence" {
                 let _ = route_delivery(&rt, to, &xml).await;
-                continue;
+                return Ok::<(), anyhow::Error>(());
             }
             let remote = local.is_none()
                 && !rt.config.hosts.contains_key(
@@ -3521,6 +3695,14 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                 if !queued {
                     emit(stream,session.as_ref(),&format!("<message xmlns='{CLIENT}' type='error' id='{}' from='{}' to='{}'><error type='cancel'><service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/></error></message>",escape(n.attribute("id").unwrap_or("")),escape(to),escape(full))).await?;
                 }
+            }
+        }
+            Ok::<(), anyhow::Error>(())
+        }.await?;
+        if let Some(s) = handled_session {
+            let mut state = s.lock().unwrap();
+            if !state.closed {
+                state.mark_handled()?;
             }
         }
     }

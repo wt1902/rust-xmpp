@@ -1,0 +1,11 @@
+PASS: recovery-history
+PASS: leave
+PASS: kick
+PASS: demotion
+PASS: password
+PASS: configuration
+PASS: restart-grace
+PASS: custom-grace
+PASS: unknown-module
+PASS: destroy-tombstone
+PASS: actual STARTTLS SIGKILL MUC recovery, history, acknowledged barriers and fixed grace

@@ -27,6 +27,8 @@ python3 tests/pep_order_network.py target/release/rust-xmpp
 python3 tests/pep_notifications_network.py target/release/rust-xmpp
 python3 tests/preauth_network.py target/release/rust-xmpp
 python3 tests/muc_restart_network.py target/release/rust-xmpp
+python3 tests/muc_crash_network.py target/release/rust-xmpp
+python3 tests/sm_restart_network.py target/release/rust-xmpp
 python3 tests/resource_rebind.py target/release/rust-xmpp
 python3 scripts/integration_http.py
 python3 scripts/integration_http.py --custom-upload-path
@@ -39,6 +41,7 @@ if [[ -n ${MINIO_BINARY:-} ]]; then
 fi
 if [[ ${XMPP_LOAD_CHECK:-0} == 1 ]]; then
   python3 scripts/load_smoke.py --clients 500 --accounts 100 --rounds 10 --message-rounds 10 --archive
+  python3 tests/muc_sm_load_network.py --binary target/release/rust-xmpp --clients 500
 fi
 if [[ -n ${PROSODY_REFERENCE_SOURCE:-} ]]; then
   RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-1.99.1} scripts/prosody_compat/verify.sh \

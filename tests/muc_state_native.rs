@@ -13,9 +13,10 @@ fn actual_prosody_restores_rust_checkpoint_and_rust_reads_native_freeze() {
     let root = tempfile::tempdir().unwrap();
     // Let the real room implementation create its normal configuration/index.
     let mut muc = Muc::new(root.path().into(), DOMAIN.into());
+    muc.set_component_options(serde_json::json!({"muc_room_locking":false}), false);
     muc.set_defaults(serde_json::json!({"persistent":true,"whois":"moderators"}));
     let join = roxmltree::Document::parse(
-        "<presence to='room@rooms.example.org/Alice'><status>Rust desktop</status></presence>",
+        "<presence to='room@rooms.example.org/Alice'><x xmlns='http://jabber.org/protocol/muc'/><status>Rust desktop</status></presence>",
     )
     .unwrap();
     muc.handle("alice@example.org/desktop", join.root_element())

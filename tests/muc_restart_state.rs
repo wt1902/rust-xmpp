@@ -9,6 +9,7 @@ fn send(m: &mut Muc, jid: &str, packet: &str) -> ModuleResult {
 }
 fn initial(root: &std::path::Path) -> Muc {
     let mut m = Muc::new(root.into(), HOST.into());
+    m.set_component_options(json!({"muc_room_locking":false}), false);
     m.set_defaults(json!({"persistent": true, "password":"private-pass"}));
     send(
         &mut m,
@@ -57,12 +58,18 @@ fn repeated_restart_keeps_dormant_claim_and_deadline_without_ghost_routing() {
     );
     assert!(restored.replies.iter().all(|p| !p.contains("private-pass")));
     assert!(m.restore_for_session(ALICE).unwrap().replies.is_empty());
-    // Simulate a later crash: no clean checkpoint. A consumed on-disk proof
-    // must not revive a prior moderator grant on another process start.
+    // The authenticated restoration itself committed fresh live membership,
+    // so a second crash recovers that current room state again.
     drop(m);
     let mut m = Muc::new(root.path().into(), HOST.into());
     m.prepare_recovery().unwrap();
-    assert!(m.restore_for_session(ALICE).unwrap().replies.is_empty());
+    assert!(
+        m.restore_for_session(ALICE)
+            .unwrap()
+            .replies
+            .iter()
+            .any(|p| p.contains("110"))
+    );
 }
 #[test]
 fn changed_configuration_invalidates_auto_recovery_without_disclosing_password() {
@@ -81,7 +88,13 @@ fn changed_configuration_invalidates_auto_recovery_without_disclosing_password()
     m.prepare_recovery().unwrap();
     let result = m.restore_for_session(ALICE).unwrap();
     assert!(result.replies.is_empty() && result.deliveries.is_empty());
-    let denied = send(&mut m, ALICE, &format!("<presence to='{ROOM}/Alice'/>"));
+    let denied = send(
+        &mut m,
+        ALICE,
+        &format!(
+            "<presence to='{ROOM}/Alice'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
+    );
     assert!(denied.replies.iter().any(|p| p.contains("not-authorized")));
     assert!(
         denied
@@ -95,7 +108,13 @@ fn changed_configuration_invalidates_auto_recovery_without_disclosing_password()
 fn unrelated_disconnect_does_not_delete_dormant_temporary_room() {
     let root = tempfile::tempdir().unwrap();
     let mut m = Muc::new(root.path().into(), HOST.into());
-    send(&mut m, ALICE, &format!("<presence to='{ROOM}/Alice'/>"));
+    send(
+        &mut m,
+        ALICE,
+        &format!(
+            "<presence to='{ROOM}/Alice'><x xmlns='http://jabber.org/protocol/muc'/></presence>"
+        ),
+    );
     m.checkpoint_live().unwrap();
     drop(m);
     let mut m = Muc::new(root.path().into(), HOST.into());

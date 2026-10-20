@@ -1253,6 +1253,7 @@ pub fn on_presence(
         escape(&id)
     );
     Ok(ModuleResult {
+        terminal_reply: false,
         replies: vec![],
         deliveries: vec![(jid.into(), query)],
     })
@@ -1594,6 +1595,7 @@ pub fn on_remote_presence(
         vec![owner.into()],
     );
     Ok(ModuleResult {
+        terminal_reply: false,
         replies: vec![],
         deliveries: vec![(
             verified_from.into(),

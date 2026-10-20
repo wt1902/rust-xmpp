@@ -35,8 +35,51 @@ pub struct Session {
     pub closed: bool,
     pub close_condition: Option<String>,
     pub cancel: Arc<tokio::sync::Notify>,
+    pub(crate) durable: Option<std::sync::Weak<crate::session_store::Store>>,
 }
 impl Session {
+    /// Persist state before acknowledging client input or exposing output to a transport.
+    pub fn checkpoint(&self) -> Result<()> {
+        crate::session_store::checkpoint(self)
+    }
+    pub fn mark_handled(&mut self) -> Result<()> {
+        ensure!(!self.closed, "session closed");
+        if !self.sm {
+            return Ok(());
+        }
+        let previous = self.handled;
+        self.handled = self.handled.wrapping_add(1);
+        if let Err(error) = self.checkpoint() {
+            self.handled = previous;
+            return Err(error);
+        }
+        Ok(())
+    }
+    pub fn track_outbound(&mut self, xml: &str) -> Result<()> {
+        ensure!(!self.closed, "session closed");
+        if !self.sm {
+            return Ok(());
+        }
+        ensure!(self.pending.len() < 4096, "stream management queue limit");
+        // The byte bound applies to memory-only sessions too.
+        ensure!(
+            self.pending
+                .iter()
+                .map(String::len)
+                .sum::<usize>()
+                .saturating_add(xml.len())
+                <= 8 * 1024 * 1024,
+            "stream management byte limit"
+        );
+        self.sent = self.sent.wrapping_add(1);
+        self.pending.push_back(xml.into());
+        if let Err(error) = self.checkpoint() {
+            self.sent = self.sent.wrapping_sub(1);
+            self.pending.pop_back();
+            return Err(error);
+        }
+        Ok(())
+    }
     pub fn first_important_push(&mut self, normal_timeout: Duration) {
         if self.sender.is_none() && self.expires.is_some() && !self.first_push_sent {
             self.first_push_sent = true;
@@ -45,25 +88,18 @@ impl Session {
     }
     pub fn transmit(&mut self, xml: String) -> Result<()> {
         ensure!(!self.closed, "session closed");
-        if self.sm {
-            ensure!(self.pending.len() < 4096, "stream management queue limit");
-        }
-        if let Some(tx) = &self.sender {
+        if let Some(tx) = self.sender.clone() {
             let permit = tx
                 .try_reserve()
                 .map_err(|_| anyhow::anyhow!("recipient queue unavailable"))?;
-            if self.sm {
-                self.sent = self.sent.wrapping_add(1);
-                self.pending.push_back(xml.clone());
-            }
+            self.track_outbound(&xml)?;
             permit.send(xml);
         } else {
             ensure!(
                 self.sm && self.resume_id.is_some(),
                 "recipient disconnected"
             );
-            self.sent = self.sent.wrapping_add(1);
-            self.pending.push_back(xml);
+            self.track_outbound(&xml)?;
         }
         Ok(())
     }
@@ -79,9 +115,14 @@ impl Session {
         ensure!(!self.closed, "session closed");
         let n = h.wrapping_sub(self.acked) as usize;
         ensure!(n <= self.pending.len(), "invalid stream acknowledgement");
+        let previous = self.clone();
         self.pending.drain(..n);
         self.acked = h;
         self.ack_requested = false;
+        if let Err(error) = self.checkpoint() {
+            *self = previous;
+            return Err(error);
+        }
         Ok(())
     }
     pub fn enable(&mut self, resume: bool) -> Result<String> {
@@ -90,6 +131,11 @@ impl Session {
         self.sm = true;
         if resume {
             self.resume_id = Some(uuid::Uuid::new_v4().to_string());
+        }
+        if let Err(error) = crate::session_store::enable(self) {
+            self.sm = false;
+            self.resume_id = None;
+            return Err(error);
         }
         Ok(match &self.resume_id {
             Some(id) => format!(
@@ -122,8 +168,62 @@ impl ConflictPolicy {
 #[derive(Clone, Default)]
 pub struct Hub {
     sessions: Arc<Mutex<BTreeMap<String, SharedSession>>>,
+    store: Option<Arc<crate::session_store::Store>>,
 }
 impl Hub {
+    pub fn persistent(path: impl AsRef<std::path::Path>) -> Result<Self> {
+        let (store, records) = crate::session_store::Store::open(path.as_ref())?;
+        let mut sessions = BTreeMap::new();
+        for record in records {
+            let mut session = record.session();
+            session.durable = Some(Arc::downgrade(&store));
+            ensure!(
+                !sessions.contains_key(&session.jid),
+                "duplicate durable resource"
+            );
+            sessions.insert(session.jid.clone(), Arc::new(Mutex::new(session)));
+        }
+        Ok(Self {
+            sessions: Arc::new(Mutex::new(sessions)),
+            store: Some(store),
+        })
+    }
+    /// Refresh only connected deadlines; disconnected deadlines never slide.
+    pub fn checkpoint_live(&self) -> Result<()> {
+        for session in self.all() {
+            let state = session.lock().unwrap();
+            if state.sender.is_some() && !state.closed {
+                state.checkpoint()?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Retire in-flight transport handles and commit offline state before shutdown.
+    pub fn freeze(&self) -> Result<()> {
+        let mut map = self.sessions.lock().unwrap();
+        for shared in map.values_mut() {
+            let previous = shared.clone();
+            let mut old = previous.lock().unwrap();
+            if old.closed || !old.sm || old.resume_id.is_none() {
+                continue;
+            }
+            let mut state = old.clone();
+            state.sender = None;
+            if state.expires.is_none() {
+                state.expires = Some(Instant::now() + state.timeout);
+            }
+            state.connection = format!("shutdown-{}", uuid::Uuid::new_v4());
+            state.cancel = Default::default();
+            crate::session_store::claim(&old, &state)?;
+            old.closed = true;
+            old.sender = None;
+            old.resume_id = None;
+            old.expires = None;
+            *shared = Arc::new(Mutex::new(state));
+        }
+        Ok(())
+    }
     pub fn bind(
         &self,
         jid: &str,
@@ -150,9 +250,10 @@ impl Hub {
             match policy {
                 ConflictPolicy::KickNew => anyhow::bail!("resource conflict"),
                 ConflictPolicy::KickOld => {
-                    let old = map.remove(&jid).unwrap();
+                    let old = map.get(&jid).unwrap().clone();
                     {
                         let mut state = old.lock().unwrap();
+                        crate::session_store::remove(&state)?;
                         state.closed = true;
                         state.close_condition = Some("conflict".into());
                         state.sender = None;
@@ -160,6 +261,7 @@ impl Hub {
                         state.expires = None;
                         state.cancel.notify_one();
                     }
+                    map.remove(&jid);
                     replaced = Some(old);
                 }
                 ConflictPolicy::Increment => {
@@ -208,22 +310,34 @@ impl Hub {
             closed: false,
             close_condition: None,
             cancel: Default::default(),
+            durable: self.store.as_ref().map(Arc::downgrade),
         }));
         map.insert(jid, s.clone());
         Ok((s, replaced))
     }
+    pub fn kick_owner_checked(&self, owner: &str) -> Result<()> {
+        let mut map = self.sessions.lock().unwrap();
+        let victims: Vec<_> = map
+            .iter()
+            .filter_map(|(jid, session)| {
+                (session.lock().unwrap().owner == owner).then_some(jid.clone())
+            })
+            .collect();
+        for jid in victims {
+            let shared = map.get(&jid).unwrap().clone();
+            let mut state = shared.lock().unwrap();
+            // Do not let account deletion/recreation proceed if durable revocation failed.
+            crate::session_store::remove(&state)?;
+            state.resume_id = None;
+            state.sender = None;
+            state.closed = true;
+            state.cancel.notify_one();
+            map.remove(&jid);
+        }
+        Ok(())
+    }
     pub fn kick_owner(&self, owner: &str) {
-        self.sessions.lock().unwrap().retain(|_, s| {
-            let mut s = s.lock().unwrap();
-            if s.owner == owner {
-                s.sender = None;
-                s.closed = true;
-                s.cancel.notify_one();
-                false
-            } else {
-                true
-            }
-        });
+        let _ = self.kick_owner_checked(owner);
     }
     pub fn get(&self, jid: &str) -> Option<SharedSession> {
         self.sessions.lock().unwrap().get(jid).cloned()
@@ -301,9 +415,21 @@ impl Hub {
             if !graceful && s.sm && s.resume_id.is_some() {
                 s.csi.reset();
                 s.sender = None;
-                s.expires = Some(Instant::now() + s.timeout);
+                // Repeated cleanup must not renew an already offline token.
+                if s.expires.is_none() {
+                    s.expires = Some(Instant::now() + s.timeout);
+                }
+                if s.checkpoint().is_err() {
+                    return true;
+                }
                 true
             } else {
+                if crate::session_store::remove(&s).is_err() {
+                    return true;
+                }
+                s.closed = true;
+                s.resume_id = None;
+                s.sender = None;
                 removed.push(jid.clone());
                 false
             }
@@ -312,12 +438,16 @@ impl Hub {
     }
     pub fn expired(&self) -> Vec<String> {
         let mut out = vec![];
-        self.sessions.lock().unwrap().retain(|jid, s| {
-            if s.lock()
-                .unwrap()
-                .expires
-                .is_some_and(|t| Instant::now() >= t)
-            {
+        self.sessions.lock().unwrap().retain(|jid, session| {
+            let mut state = session.lock().unwrap();
+            if state.expires.is_some_and(|t| Instant::now() >= t) {
+                if crate::session_store::remove(&state).is_err() {
+                    return true;
+                }
+                state.closed = true;
+                state.resume_id = None;
+                state.sender = None;
+                state.cancel.notify_one();
                 out.push(jid.clone());
                 false
             } else {
@@ -340,7 +470,12 @@ impl Hub {
             .values()
             .find(|session| {
                 let state = session.lock().unwrap();
-                !state.closed && state.owner == owner && state.resume_id.as_deref() == Some(id)
+                !state.closed
+                    && state
+                        .expires
+                        .is_none_or(|deadline| deadline > Instant::now())
+                    && state.owner == owner
+                    && state.resume_id.as_deref() == Some(id)
             })
             .cloned();
         if let Some(previous) = candidate {
@@ -351,13 +486,16 @@ impl Hub {
             // Keep a retired transport's in-flight operations isolated from the
             // resumed queue, acknowledgements and CSI state.
             let mut state = old.clone();
-            state.acknowledge(h)?;
+            state.pending.drain(..count);
+            state.acked = h;
+            state.ack_requested = false;
             state.cancel = Default::default();
             state.csi.reset();
             state.first_push_sent = false;
             state.sender = Some(sender);
             state.connection = connection.into();
             state.expires = None;
+            crate::session_store::claim(&old, &state)?;
             let mut replay = vec![format!(
                 "<resumed xmlns='urn:xmpp:sm:3' previd='{id}' h='{}'/>",
                 state.handled
@@ -382,6 +520,21 @@ impl Hub {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn traffic_before_sm_enable_is_not_counted() {
+        let hub = Hub::default();
+        let (tx, _rx) = mpsc::channel(8);
+        let session = hub
+            .bind("a@x/r", "plain", tx, Duration::from_secs(30))
+            .unwrap();
+        let mut session = session.lock().unwrap();
+        session.mark_handled().unwrap();
+        session.track_outbound("plain reply").unwrap();
+        session.enable(true).unwrap();
+        assert_eq!((session.handled, session.sent), (0, 0));
+        session.mark_handled().unwrap();
+        assert_eq!(session.handled, 1);
+    }
     #[test]
     fn resume_replays_only_unacked_and_checks_owner() {
         let h = Hub::default();

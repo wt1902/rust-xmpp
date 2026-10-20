@@ -11,7 +11,36 @@ pub struct Buffer {
     pub resume_delay: Duration,
     pub important_payloads: Vec<String>,
 }
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub(crate) struct DurableBuffer {
+    inactive: bool,
+    queue: Vec<String>,
+    limit: usize,
+    resume_delay_ms: u64,
+    important_payloads: Vec<String>,
+}
 impl Buffer {
+    pub(crate) fn durable(&self) -> DurableBuffer {
+        DurableBuffer {
+            inactive: self.inactive,
+            queue: self.queue.clone(),
+            limit: self.limit,
+            resume_delay_ms: self.resume_delay.as_millis().min(u64::MAX as u128) as u64,
+            important_payloads: self.important_payloads.clone(),
+        }
+    }
+    pub(crate) fn from_durable(value: DurableBuffer) -> Self {
+        Self {
+            inactive: value.inactive,
+            flushing_until: None,
+            bytes: value.queue.iter().map(String::len).sum(),
+            queue: value.queue,
+            limit: value.limit,
+            resume_delay: Duration::from_millis(value.resume_delay_ms),
+            important_payloads: value.important_payloads,
+        }
+    }
+
     pub fn configure(&mut self, limit: usize, delay: Duration, payloads: Vec<String>) {
         self.limit = limit.max(1);
         self.resume_delay = delay;

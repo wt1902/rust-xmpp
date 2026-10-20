@@ -51,3 +51,5 @@ pub mod http_altconnect;
 pub mod object_store;
 
 pub mod upload_migration;
+
+pub mod session_store;

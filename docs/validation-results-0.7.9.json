@@ -1,0 +1,133 @@
+{
+  "version": "0.7.9",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 265,
+    "failed": 0,
+    "ignored": 11
+  },
+  "fmt": "passed",
+  "clippy": "passed",
+  "release": "passed",
+  "native_module_tests": 8,
+  "native_federation_tests": 1,
+  "release_binary_sha256": "24c0dca637e7ce4e238ef6becad16bb5a18a33546554b0eecf310fd8927f021c",
+  "upload": {
+    "minio_10gib": {
+      "ok": true,
+      "minio_version": "minio-sandbox-compat version DEVELOPMENT.GOGET (commit-id=DEVELOPMENT.GOGET)\nRuntime: go1.24.3 linux/amd64\nLicense: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html\nCopyright: 2015-0000 MinIO, Inc.",
+      "minio_binary_sha256": "8bbb9bccfbac69869ab499c39cfd8731b2b770b86ccf37cca1c8267556ad9bf0",
+      "binary": "/workspace/scratch/362577cdf2e0/recovered/rust-xmpp/target/release/rust-xmpp",
+      "binary_version": "rust-xmpp 0.7.9 — experimental XMPP runtime",
+      "binary_sha256": "24c0dca637e7ce4e238ef6becad16bb5a18a33546554b0eecf310fd8927f021c",
+      "size": 10737418240,
+      "qualifies_over_5gib": true,
+      "minio_test_only_compatibility_patch": {
+        "sha256": "e60592a65273f28a1375eb6ecbc0966f7fbd2ba7567d2ffedc13ffd95ed224f5",
+        "diff": "--- a/cmd/net.go\n+++ b/cmd/net.go\n@@ -24,6 +24,7 @@\n \t\"runtime\"\n \t\"sort\"\n \t\"strings\"\n+\t\"syscall\"\n \n \t\"github.com/minio/minio-go/v7/pkg/set\"\n \t\"github.com/minio/minio/internal/config\"\n@@ -54,6 +55,10 @@\n // mustGetLocalIPs returns IPs of local interface\n func mustGetLocalIPs() (ipList []net.IP) {\n \tifs, err := net.Interfaces()\n+\t// TEST ONLY: the sandbox denies netlink enumeration; all listeners bind loopback.\n+\tif errors.Is(err, syscall.EPERM) {\n+\t\treturn []net.IP{net.ParseIP(\"127.0.0.1\")}\n+\t}\n \tlogger.FatalIf(err, \"Unable to get IP addresses of this host\")\n \n \tfor _, interf := range ifs {\n",
+        "limitation": "Modified upstream MinIO: EPERM interface enumeration uses loopback; all S3/auth/storage code remains upstream."
+      },
+      "max_rss_bytes": {
+        "server": 106057728,
+        "client": 24338432,
+        "minio": 498958336
+      },
+      "put_bytes": 10737418240,
+      "put_seconds": 48.45253416699961,
+      "sha256": "e4c296c41d3a9605f0348961e41ed835b5f42c220751ed2269a726951546c935",
+      "minio_etag": "958f42d583ac40ff209eb865c5eb4bd6-1280",
+      "multipart_parts": 1280,
+      "minio_allocated_bytes": 10747953152,
+      "free_disk_after_put_bytes": 15180328960,
+      "get_bytes": 10737418240,
+      "get_sha256": "e4c296c41d3a9605f0348961e41ed835b5f42c220751ed2269a726951546c935",
+      "get_seconds": 13.709708632000911,
+      "range_offsets": [
+        0,
+        4294967289,
+        5368709113,
+        10737418208
+      ],
+      "restart_range_ok": true,
+      "restart_reuse_status": 409,
+      "crash_multipart_cleanup_ok": true,
+      "minio_upstream_provenance": {
+        "source_url": "https://github.com/minio/minio/archive/refs/tags/RELEASE.2025-04-22T22-12-26Z.tar.gz",
+        "upstream_release": "RELEASE.2025-04-22T22-12-26Z",
+        "build": "Go1.24.3 go build -p4; no dependency changes",
+        "sha256": {
+          "/tmp/minio-source.tar.gz": "1a63209927b9d1fb239b2a776b7b01d1902eff19379a108f4bc7005edcc0968c",
+          "/tmp/minio-genuine": "3dd5d6756ad17c599fbc1c6f6a2f5b590242c049522e848c700949dbf8e60ad9",
+          "/tmp/minio-sandbox-compat": "8bbb9bccfbac69869ab499c39cfd8731b2b770b86ccf37cca1c8267556ad9bf0",
+          "/tmp/minio-sandbox-compat.patch": "e60592a65273f28a1375eb6ecbc0966f7fbd2ba7567d2ffedc13ffd95ed224f5"
+        },
+        "compatibility_limitation": "Only net.Interfaces EPERM becomes loopback127.0.0.1; all S3/auth/multipart/storage source unchanged."
+      }
+    },
+    "migration_network": "passed: local -> S3 A -> S3 B -> local, dry-run, lock, native metadata/source preservation, interrupted copy/resume, native final file with incomplete cache",
+    "s3_fault_network": "passed: SigV4, paginated exact-key orphan cleanup, foreign prefix safety, missing UploadId crash recovery, conditional Complete, ambiguous completion quarantine and late recovery",
+    "claim_race_regression": "passed: atomic fresh snapshot and active claim retains latest completion/quarantine flags"
+  },
+  "load": {
+    "total_load_wall_seconds": 7.094,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.671,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 62.192,
+      "p95_ms": 83.883,
+      "max_ms": 114.563
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 13.502,
+      "p95_ms": 19.31,
+      "max_ms": 24.054
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 4.134,
+    "metrics_before": {
+      "rss_kib": 8048,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 26804,
+      "cpu_seconds": 1.02,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 27400,
+      "cpu_seconds": 8.85,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 27464,
+      "cpu_seconds": 8.9,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 27464,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "limitations": [
+    "MinIO upstream RELEASE.2025-04-22T22-12-26Z with disclosed five-line EPERM loopback interface enumeration adapter; S3/auth/storage/multipart code unchanged",
+    "Single-node loopback MinIO, HTTP gateway-to-store and verified HTTPS client-to-gateway; no AWS account or distributed/production storage qualification",
+    "Missing/corrupt ownership metadata cannot identify arbitrary bucket orphans; lifecycle remains defense in depth",
+    "Ambiguous completion with HEAD404 quarantines slot until a trustworthy remote outcome; no automatic destructive reset",
+    "Migration is offline, source preserving, requires temporary disk up to one largest file; no live migration",
+    "Previous full Prosody parity / production client / DNSSEC limits unchanged"
+  ]
+}

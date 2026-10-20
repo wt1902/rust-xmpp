@@ -57,7 +57,7 @@ fn safe_payload(v: &V) -> String {
         if child
             .get("attr")
             .and_then(|a| field(a, "xmlns"))
-            .is_some_and(|ns| ns != "jabber:client")
+            .is_some_and(|ns| !matches!(ns, "" | "jabber:client"))
         {
             continue;
         }
@@ -70,6 +70,17 @@ fn safe_payload(v: &V) -> String {
         }
     }
     out
+}
+/// Keep the crash image transport-independent and exclude passwords/extensions.
+pub fn sanitize_presence_payload(payload: &str) -> String {
+    if payload.len() > MAX_PRESENCE {
+        return String::new();
+    }
+    let packet = format!("<presence>{payload}</presence>");
+    let Ok(doc) = roxmltree::Document::parse(&packet) else {
+        return String::new();
+    };
+    safe_payload(&crate::storage::stanza_value(doc.root_element()))
 }
 /// Decode Prosody's state store (and old frozen room maps) without trusting roles,
 /// primary-session pointers, or unvalidated stanza extensions.
@@ -235,11 +246,29 @@ pub fn save_room_checkpoint(
 }
 
 /// Dormant claims have a fixed restart deadline; probes never extend it.
-#[derive(Default)]
+#[derive(Clone)]
 pub struct PendingOccupants {
     rooms: BTreeMap<String, (u64, Vec<OccupantSnapshot>)>,
+    deadlines: BTreeMap<(String, String), u64>,
+    grace_seconds: u64,
+}
+impl Default for PendingOccupants {
+    fn default() -> Self {
+        Self {
+            rooms: BTreeMap::new(),
+            deadlines: BTreeMap::new(),
+            grace_seconds: RECOVERY_SECONDS,
+        }
+    }
 }
 impl PendingOccupants {
+    pub fn set_grace_seconds(&mut self, seconds: u64) {
+        self.grace_seconds = seconds.clamp(1, 7 * 86400);
+    }
+    pub fn grace_seconds(&self) -> u64 {
+        self.grace_seconds
+    }
+
     pub fn insert(
         &mut self,
         room: String,
@@ -252,8 +281,15 @@ impl PendingOccupants {
                     <= MAX_OCCUPANTS,
             "pending recovery limit"
         );
+        self.deadlines.retain(|(name, _), _| name != &room);
+        for occupant in &occupants {
+            self.deadlines.insert(
+                (room.clone(), occupant.jid.clone()),
+                now.saturating_add(self.grace_seconds),
+            );
+        }
         self.rooms
-            .insert(room, (now.saturating_add(RECOVERY_SECONDS), occupants));
+            .insert(room, (now.saturating_add(self.grace_seconds), occupants));
         Ok(())
     }
     /// Preserve a checkpoint's original deadline over repeated process restarts.
@@ -264,7 +300,7 @@ impl PendingOccupants {
         saved_at: u64,
         now: u64,
     ) -> Result<()> {
-        if saved_at > now || saved_at.saturating_add(RECOVERY_SECONDS) <= now {
+        if saved_at > now || saved_at.saturating_add(self.grace_seconds) <= now {
             return Ok(());
         }
         self.insert(room, occupants, saved_at)
@@ -285,6 +321,8 @@ impl PendingOccupants {
             .iter()
             .position(|o| o.jid == authenticated_jid && o.nick == nick)?;
         let mut claim = occupants.remove(i);
+        self.deadlines
+            .remove(&(room.into(), authenticated_jid.into()));
         claim.jid = authenticated_jid.into();
         Some(claim)
     }
@@ -306,10 +344,61 @@ impl PendingOccupants {
             })
             .collect()
     }
+    pub fn checkpoint_members(&mut self, room: &str, now: u64) -> Vec<(u64, OccupantSnapshot)> {
+        self.expire(now);
+        self.rooms
+            .get(room)
+            .map(|(_, occupants)| {
+                occupants
+                    .iter()
+                    .map(|o| {
+                        (
+                            self.deadlines
+                                .get(&(room.into(), o.jid.clone()))
+                                .copied()
+                                .unwrap_or(now)
+                                .saturating_sub(self.grace_seconds),
+                            o.clone(),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+    pub fn insert_checkpoint_members(
+        &mut self,
+        room: String,
+        members: Vec<(u64, OccupantSnapshot)>,
+        now: u64,
+    ) -> Result<()> {
+        let members = members
+            .into_iter()
+            .filter(|(at, _)| {
+                at.saturating_add(self.grace_seconds) > now
+                    && at.saturating_add(self.grace_seconds) <= now.saturating_add(7 * 86400)
+            })
+            .collect::<Vec<_>>();
+        let Some(saved_at) = members.iter().map(|(at, _)| *at).min() else {
+            return Ok(());
+        };
+        self.insert(
+            room.clone(),
+            members.iter().map(|(_, o)| o.clone()).collect(),
+            saved_at,
+        )?;
+        for (at, o) in members {
+            self.deadlines
+                .insert((room.clone(), o.jid), at.saturating_add(self.grace_seconds));
+        }
+        Ok(())
+    }
     pub fn room_snapshot(&mut self, room: &str, now: u64) -> Option<(u64, Vec<OccupantSnapshot>)> {
         self.expire(now);
         self.rooms.get(room).map(|(deadline, occupants)| {
-            (deadline.saturating_sub(RECOVERY_SECONDS), occupants.clone())
+            (
+                deadline.saturating_sub(self.grace_seconds),
+                occupants.clone(),
+            )
         })
     }
     /// Read-only membership probe; deadline-sensitive callers use contains_room.
@@ -322,22 +411,31 @@ impl PendingOccupants {
     pub fn identities(&self, now: u64) -> Vec<(String, String)> {
         self.rooms
             .iter()
-            .filter(|(_, (deadline, _))| *deadline > now)
             .flat_map(|(room, (_, occupants))| {
-                occupants.iter().map(|o| (room.clone(), o.jid.clone()))
+                occupants
+                    .iter()
+                    .filter(|o| {
+                        self.deadlines
+                            .get(&(room.clone(), o.jid.clone()))
+                            .is_some_and(|deadline| *deadline > now)
+                    })
+                    .map(|o| (room.clone(), o.jid.clone()))
             })
             .collect()
     }
     /// A dormant nickname remains owned by its authenticated bare account until
     /// claim expiry; a reused resource belonging to another account cannot take it.
     pub fn reserved_by(&self, room: &str, nick: &str, now: u64) -> Option<String> {
-        let (deadline, occupants) = self.rooms.get(room)?;
-        if *deadline <= now {
-            return None;
-        }
+        let (_, occupants) = self.rooms.get(room)?;
         occupants
             .iter()
-            .find(|o| o.nick == nick)
+            .find(|o| {
+                o.nick == nick
+                    && self
+                        .deadlines
+                        .get(&(room.into(), o.jid.clone()))
+                        .is_some_and(|deadline| *deadline > now)
+            })
             .map(|o| bare(&o.jid).to_owned())
     }
     pub fn contains_room(&mut self, room: &str, now: u64) -> bool {
@@ -346,17 +444,36 @@ impl PendingOccupants {
             .get(room)
             .is_some_and(|(_, occupants)| !occupants.is_empty())
     }
+    pub fn remove_room(&mut self, room: &str) {
+        self.rooms.remove(room);
+        self.deadlines.retain(|(name, _), _| name != room);
+    }
+    pub fn remove_jid(&mut self, jid: &str) {
+        self.deadlines.retain(|(_, identity), _| identity != jid);
+        for (_, occupants) in self.rooms.values_mut() {
+            occupants.retain(|o| o.jid != jid);
+        }
+    }
     pub fn expire(&mut self, now: u64) -> usize {
-        let mut removed = 0;
-        self.rooms.retain(|_, (deadline, occupants)| {
-            if *deadline <= now {
-                removed += occupants.len();
-                false
-            } else {
-                true
+        let before = self.len();
+        let deadlines = &self.deadlines;
+        self.rooms.retain(|room, (deadline, occupants)| {
+            occupants.retain(|o| {
+                deadlines
+                    .get(&(room.clone(), o.jid.clone()))
+                    .is_some_and(|until| *until > now)
+            });
+            if let Some(first) = occupants
+                .iter()
+                .filter_map(|o| deadlines.get(&(room.clone(), o.jid.clone())))
+                .min()
+            {
+                *deadline = *first;
             }
+            !occupants.is_empty()
         });
-        removed
+        self.deadlines.retain(|_, until| *until > now);
+        before - self.len()
     }
     pub fn len(&self) -> usize {
         self.rooms.values().map(|(_, v)| v.len()).sum()
