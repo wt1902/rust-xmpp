@@ -1,0 +1,1 @@
+PASS: TLS invitation command discovery, preapproval, single-use mutual roster, replay denial, unknown preauth forwarding/offline pending, account isolation

@@ -1,0 +1,17 @@
+# Merge into existing global config; this is NOT a complete server configuration.
+# TLS terminates at the proxy, which strips public /xmpp/ and sets Host wthome.ru.
+global:
+  http_interfaces: [127.0.0.1]
+  http_ports: [5280]
+  trusted_proxies: [127.0.0.1, '::1']
+  http_legacy_x_forwarded: true
+  http_default_host: wthome.ru
+  http_external_url: https://wthome.ru/xmpp/
+  http_paths:
+    websocket: /ws
+    bosh: /bind
+  http_cors_override:
+    websocket:
+      origins: [https://conversejs.wthome.ru]
+    bosh:
+      origins: [https://conversejs.wthome.ru]

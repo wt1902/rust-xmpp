@@ -1,0 +1,9 @@
+# Merge this fragment into the existing global settings; this is not a full config.
+# Keep the current hosts, data_path, certificates and all other options.
+global:
+  http_cors_override:
+    websocket:
+      enabled: true
+      origins:
+        - https://wthome.ru
+        - https://conversejs.wthome.ru

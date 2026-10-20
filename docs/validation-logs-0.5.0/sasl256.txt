@@ -1,0 +1,1 @@
+PASS: independent SCRAM-SHA-256 over TLS, SASL1/SASL2, SSDP verification, server signatures and wrong-password rejection

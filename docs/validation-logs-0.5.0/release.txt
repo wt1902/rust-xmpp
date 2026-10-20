@@ -1,0 +1,2 @@
+   Compiling rust-xmpp v0.5.0 (/workspace/scratch/362577cdf2e0/rust-xmpp-next)
+    Finished `release` profile [optimized] target(s) in 21.78s

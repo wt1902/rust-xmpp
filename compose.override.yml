@@ -1,0 +1,11 @@
+# Run from the directory holding the ORIGINAL docker-compose.yml:
+# docker compose -f docker-compose.yml -f rust-xmpp/compose.override.yml config
+# Then use up -d --build prosody after validation on copied data.
+# The base file's ports, volumes, coturn service and healthcheck are inherited.
+services:
+  prosody:
+    image: rust-xmpp:0.5.0
+    pull_policy: never
+    build:
+      context: ./rust-xmpp
+      dockerfile: Dockerfile

@@ -1,0 +1,584 @@
+   Compiling rust-xmpp v0.7.2 (/workspace/scratch/362577cdf2e0/rust-xmpp-next)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.18s
+     Running unittests src/lib.rs (target/debug/deps/rust_xmpp-8ec155c80b6dfeaf)
+
+running 26 tests
+test federation::tests::starttls_must_be_an_immediate_stream_feature ... ok
+test federation::tests::external_must_be_in_the_advertised_mechanisms ... ok
+test federation::tests::federation_domains_are_dns_names_and_case_insensitive ... ok
+test http_transport::tests::bosh_processing_capacity_is_bounded ... ok
+test federation::tests::stream_restarts_compare_canonical_domains ... ok
+test logging::tests::console_aliases_share_one_sink_with_combined_levels ... ok
+test sasl::tests::reject_malformed_and_downgrade ... ok
+test http_transport::tests::independent_framing ... ok
+test http_transport::tests::websocket_preserves_inherited_namespaces_and_spaced_declarations ... ok
+test server::authorization_tests::pep_diagnostics_exclude_payloads_and_identifiers ... ok
+test sessions::push_timeout_tests::first_important_push_shortens_extended_hibernation_once ... ok
+test sessions::tests::acknowledgement_wraps ... ok
+test sessions::tests::graceful_disconnect_is_not_resumable ... ok
+test sessions::tests::resume_replays_only_unacked_and_checks_owner ... ok
+test wire::tests::arbitrary_prefix_and_inherited_namespaces ... ok
+test wire::tests::cdata_and_comments_frame_without_counting_brackets ... ok
+test wire::tests::declarations_rejected ... ok
+test wire::tests::fragmented_and_pipelined ... ok
+test wire::tests::invalid_namespace_and_declarations_rejected ... ok
+test sasl::tests::rfc5802_sha1_vector ... ok
+test http_service::tests::abandoned_slots_release_quota_without_pruning_existing_or_active_files ... ok
+test sasl::tests::sha256_independent_python_vector ... ok
+test sasl::tests::plus_channel_binding_and_ssdp_are_authenticated ... ok
+test server::authorization_tests::upload_requires_registered_local_account_or_explicit_remote_access ... ok
+test sasl::tests::wrong_proof_nonce_binding_and_duplicates ... ok
+test admin::tests::real_admin_xml_protocol_over_duplex ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+     Running unittests src/main.rs (target/debug/deps/rust_xmpp-316204254fe9a06d)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admin_socket.rs (target/debug/deps/admin_socket-54969f77ebe78f0e)
+
+running 1 test
+test prosody_wire_commands_password_prompt_and_safe_errors ... ignored, requires AF_UNIX socket permission; run on target host with --ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/archive_mam.rs (target/debug/deps/archive_mam-4f1e3e981d589aa6)
+
+running 14 tests
+test archive_larger_than_128mib_streams ... ignored, large-file scalability regression; run explicitly
+test mam_preferences_persist ... ok
+test legacy_records_binary_cache_and_roundtrip ... ok
+test corrupt_archive_reports_server_error_and_namespace_stripping_is_precise ... ok
+test append_is_incremental_and_recovers_torn_tail ... ok
+test smart_enable_and_message_selection ... ok
+test real_archive_sid_and_sender_privacy ... ok
+test archive_roundtrip_preserves_default_namespace_resets ... ok
+test equal_cursors_and_normalized_query_jids ... ok
+test muc_archive_filters_stanza_kind_instead_of_sender_jid ... ok
+test zero_page_dates_and_invalid_forms ... ok
+test mam_paging_filters_and_forbidden ... ok
+test extended_ids_ranges_flip_and_metadata ... ok
+test namespaces_expiry_and_concurrent_append ... ok
+
+test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/auth.rs (target/debug/deps/auth-0b0ae2335249fb23)
+
+running 3 tests
+test traversal_and_malicious_account_records_rejected ... ok
+test create_and_read_hashed_accounts ... ok
+test authentication_prepares_names_without_relaxing_account_management ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+
+     Running tests/cli.rs (target/debug/deps/cli-094eb9ac60021a27)
+
+running 2 tests
+test server_cannot_be_mistaken_for_running_service ... ok
+test conversion_preserves_source_and_refuses_overwrite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/config.rs (target/debug/deps/config-35520fafebc2d691)
+
+running 12 tests
+test component_can_explicitly_enable_global_modules ... ok
+test declarations_and_overrides ... ok
+test include_cycles_rejected ... ok
+test include_has_own_global_scope_and_parent_scope_is_restored ... ok
+test runtime_capabilities_are_unavailable ... ok
+test malformed_values_rejected ... ok
+test storage_paths_encode_like_prosody ... ok
+test tables_cannot_recurse_forever ... ok
+test supplied_configuration_scopes_arithmetic_and_modules ... ok
+test all_formats_round_trip_actual_config ... ok
+test supplied_config_matches_original_prosody_loader ... ok
+test loops_are_bounded ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/csi.rs (target/debug/deps/csi-dbcbf6a41b488f87)
+
+running 2 tests
+test bounded_queue_flush_delay_activity_and_grace ... ok
+test native_importance_rules ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/csi_native.rs (target/debug/deps/csi_native-571cd230980015ef)
+
+running 1 test
+test native_prosody_csi_importance_matches ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/data_lock.rs (target/debug/deps/data_lock-46ceeadd92bb6ee8)
+
+running 2 tests
+test child_process_probe ... ok
+test excludes_another_process_and_releases_on_drop ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/debug_legacy.rs (target/debug/deps/debug_legacy-9cb0b0aa245adc83)
+
+running 1 test
+test debug_empty_legacy_bind ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/federation_tls.rs (target/debug/deps/federation_tls-e0152fda4a1323e9)
+
+running 3 tests
+test native_prosody_tls_external_bidirectional ... ignored, requires native Prosody cafd74b9c5ea and Lua TLS dependencies
+test mutual_tls_external_delivery_and_certificate_identity_rejection ... ok
+test reuses_connections_serializes_writes_and_retires_idle_or_closed_peers ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.01s
+
+     Running tests/gajim_features.rs (target/debug/deps/gajim_features-dbda475140801d86)
+
+running 6 tests
+test security_catalog_default_is_a_real_label_and_module_can_be_disabled ... ok
+test policy_catalog_selects_default_policy_and_maps_display_and_explicit_label ... ok
+test security_catalogs_serve_both_versions_and_preserve_requested_target ... ok
+test unsupported_security_policy_configuration_returns_explicit_error ... ok
+test actual_example_policy_configuration_exposes_classifications_as_catalog_labels ... ok
+test malformed_or_unknown_policy_catalog_schemas_are_rejected ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/http_transport.rs (target/debug/deps/http_transport-2975f8ba02c03d6c)
+
+running 10 tests
+test configured_origin_is_enforced ... ok
+test bosh_preserves_namespace_inherited_from_body ... ok
+test transport_paths_and_cors_preflight_match_prosody ... ok
+test bosh_session_retries_restart_termination ... ok
+test bosh_termination_waits_for_graceful_cleanup_before_reconnect ... ok
+test bosh_reorders_two_requests_without_replaying_stanzas ... ok
+test websocket_frames_are_independent_xml ... ok
+test websocket_close_allows_graceful_engine_cleanup ... ok
+test websocket_disconnect_delivers_eof_without_graceful_close ... ok
+test bosh_retry_survives_aborted_http_request_without_replaying_stanzas ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/http_upload.rs (target/debug/deps/http_upload-e33fcbbc2ff0311f)
+
+running 5 tests
+test https_endpoint_uses_real_tls ... ok
+test percent_escape_case_and_equivalent_url_spelling ... ok
+test expired_upload_releases_quota ... ok
+test persisted_prosody_archive_and_hs256_slot_survive_without_sidecar ... ok
+test upload_authorization_streaming_ranges_and_restart ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/iq_errors.rs (target/debug/deps/iq_errors-a8690e04adeeb529)
+
+running 2 tests
+test pep_errors_identify_the_account_and_echo_the_request ... ok
+test server_errors_without_target_remain_unaddressed_and_escape_attributes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/logging.rs (target/debug/deps/logging-7d8fd52fcdc4826f)
+
+running 10 tests
+test failed_reopen_keeps_all_original_handles ... ok
+test explicit_sink_levels_select_exactly_and_deduplicate ... ok
+test native_console_shorthands_are_accepted ... ok
+test rejects_malformed_configuration ... ok
+test filters_appends_escapes_and_redacts ... ok
+test json_records_and_bounded_ranges ... ok
+test overlapping_shorthand_destinations_receive_each_record_once ... ok
+test reopen_rotated_files_updates_clones ... ok
+test shared_sink_unions_levels_and_preserves_distinct_destinations ... ok
+test cloned_loggers_serialize_records ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/message_routing.rs (target/debug/deps/message_routing-4f3df63dddc4fc6f)
+
+running 2 tests
+test unknown_resource_falls_back_to_available_bare_jid ... ok
+test headline_uses_all_nonnegative_available_resources_and_errors_never_fallback ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/muc_access.rs (target/debug/deps/muc_access-5b161dd6682b140f)
+
+running 3 tests
+test moderators_cannot_kick_or_demote_other_moderators ... ok
+test nested_affiliations_do_not_fall_back_to_obsolete_flat_entries ... ok
+test binary_occupant_id_salt_survives_saves_and_restarts ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/muc_domain_bans.rs (target/debug/deps/muc_domain_bans-fd6476ada4b03e72)
+
+running 2 tests
+test applying_domain_ban_removes_remote_occupants_and_blocks_rejoin ... ok
+test native_domain_bans_block_remote_users_but_allow_explicit_members ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/muc_flow.rs (target/debug/deps/muc_flow-38c899e5c6507d75)
+
+running 18 tests
+test configured_lock_timeout_expires_without_owner_submission ... ok
+test iq_response_requires_expected_sender ... ok
+test join_lock_chat_leave ... ok
+test authorization_and_conflict ... ok
+test nick_invite_destroy_and_local_creation ... ok
+test multiple_resources_share_nick_and_private_delivery ... ok
+test occupant_id_is_stable_and_spoofed_ids_removed ... ok
+test restored_temporary_room_is_deleted_after_last_disconnect ... ok
+test persistence_roundtrip ... ok
+test switching_to_members_only_removes_unaffiliated_users ... ok
+test visitor_voice_request_cannot_spoof_identity_or_grant_itself_voice ... ok
+test preserves_unknown_binary_mixed_room_fields ... ok
+test room_vcard_owner_only_and_avatar_presence ... ok
+test persistent_destroy_creates_prosody_tombstone ... ok
+test reserved_nickname_blocks_other_users ... ok
+test maintenance_expires_idle_archives_and_tombstones ... ok
+test archive_history_and_permissions ... ok
+test native_muc_archive_type_and_anonymity_are_preserved ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/muc_native.rs (target/debug/deps/muc_native-5fac279d2047e8c2)
+
+running 1 test
+test actual_prosody_muc_mam_reads_rust_and_writes_native_archive ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pep_client_interop.rs (target/debug/deps/pep_client_interop-5234b43d0a197db2)
+
+running 7 tests
+test native_component_notification_type_applies_to_events_and_subscription_replay ... ok
+test missing_own_omemo_bundle_returns_recoverable_item_not_found ... ok
+test avatar_and_omemo_publish_options_support_readback_and_caps_notifications ... ok
+test publish_options_match_implicit_notification_defaults_on_old_nodes ... ok
+test migrated_native_configuration_can_roundtrip_access_model_edit ... ok
+test native_itemreply_controls_publisher_visibility_in_reads_and_replays ... ok
+test native_open_and_subscriber_publish_models_preserve_outcast_and_blocking_checks ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/pep_discovery.rs (target/debug/deps/pep_discovery-0117c47dc045796e)
+
+running 4 tests
+test standalone_component_does_not_claim_pep_automatic_subscriptions ... ok
+test account_disco_advertises_pep_without_requiring_a_node ... ok
+test node_discovery_keeps_node_identity_errors_and_access_checks ... ok
+test account_discovery_does_not_intercept_server_or_resource_caps ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/preauth.rs (target/debug/deps/preauth-c0a9d9956f0660c0)
+
+running 10 tests
+test duplicate_or_wrong_namespace_tokens_do_not_qualify ... ok
+test unknown_tokens_do_not_create_invite_stores_and_disabled_accounts_cannot_issue ... ok
+test standard_adhoc_command_returns_contact_uri ... ok
+test prosody_numeric_expiry_is_consumed_and_other_entries_preserved ... ok
+test unknown_client_token_is_preserved_on_remote_and_pending_delivery ... ok
+test concurrent_redemption_has_exactly_one_winner ... ok
+test identity_scope_does_not_burn_on_wrong_sender_or_leak_to_prosody ... ok
+test invitations_expire_are_single_use_and_owner_scoped ... ok
+test local_invitation_updates_both_rosters_without_granting_reverse_subscription ... ok
+test valid_token_autoapproves_and_sends_reciprocal_request ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/preauth_native.rs (target/debug/deps/preauth_native-a9ed19090296a4bb)
+
+running 1 test
+test native_prosody_invitation_tokens_roundtrip ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pubsub_native.rs (target/debug/deps/pubsub_native-d8eeede39db97351)
+
+running 1 test
+test native_prosody_pep_reads_rust_and_rust_reads_native ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pubsub_persistence.rs (target/debug/deps/pubsub_persistence-b6e76f1d9e8343d0)
+
+running 18 tests
+test modern_bookmarks_notify_legacy_capability ... ok
+test native_string_max_items_satisfies_numeric_publish_precondition ... ok
+test configurable_limits_component_creation_and_publisher ... ok
+test configure_requires_owner ... ok
+test capability_discovery_replays_and_filters_notifications ... ok
+test nonpersistent_items_stay_in_memory_and_can_be_made_persistent ... ok
+test full_jid_block_applies_to_reads_subscription_replays_and_events ... ok
+test reads_prosody_legacy_fixture ... ok
+test open_model_and_notifications ... ok
+test pep_persists_namespaces_and_enforces_owner ... ok
+test publish_options_conflict_is_recoverable_and_preserves_item ... ok
+test roster_presence_access_and_foreign_subscription_denied ... ok
+test remote_unavailable_is_scoped_to_addressed_owner_and_cancels_pending ... ok
+test payload_policy_applies_to_subscription_and_caps_replays ... ok
+test remote_caps_replay_and_open_node_privacy_revoke ... ok
+test subscription_options_disable_events_and_require_subscriber ... ok
+test native_notification_fields_and_retract_policy_are_independent ... ok
+test component_default_retention_matches_prosody_twenty_items ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests/push.rs (target/debug/deps/push-5ab8fb3185d73ee1)
+
+running 7 tests
+test native_push_body_lookup_excludes_extensions ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+test foreign_account_cannot_register ... ok
+test queue_coalesces_and_importance_matches_native ... ok
+test push_summary_never_copies_foreign_namespace_body ... ok
+test reenable_cancels_old_errors_and_failure_counts_are_per_account ... ok
+test stable_client_registration_and_targeted_notification ... ok
+test registrations_notifications_and_authenticated_errors ... ok
+
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/reference_prosody.rs (target/debug/deps/reference_prosody-031392d8372a1a25)
+
+running 1 test
+test real_prosody_storage_and_auth_roundtrip ... ignored, requires native supplied Prosody source; run scripts/prosody_compat/verify.sh
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/resource_sessions.rs (target/debug/deps/resource_sessions-6d0e758f141ca6a9)
+
+running 7 tests
+test kick_new_leaves_existing_session_unchanged ... ok
+test invalid_resume_owner_or_ack_does_not_evict_active_session ... ok
+test increment_skips_occupied_suffixes_and_preserves_sessions ... ok
+test random_conflicts_get_distinct_resources_for_same_owner ... ok
+test replacement_revokes_hibernating_resume_and_survives_old_cleanup ... ok
+test concurrent_default_binds_replace_atomically ... ok
+test active_resume_preserves_state_and_replaces_transport_notifier ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/sasl_accounts.rs (target/debug/deps/sasl_accounts-d407647416c71ac1)
+
+running 1 test
+test disabled_legacy_and_unicode_accounts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+
+     Running tests/storage_accounts.rs (target/debug/deps/storage_accounts-1249c1046b2daedb)
+
+running 20 tests
+test broken_roster_is_not_overwritten ... ok
+test account_purge_refuses_symlink_store_without_touching_other_files ... ok
+test domain_roster_and_block_jid_normalization ... ok
+test blocklist_enforcement_api ... ok
+test malformed_legacy_vcard_and_private_bookmarks_rejected ... ok
+test malformed_roster_iq_never_mutates ... ok
+test inbound_subscription_requires_pending_to_grant_to ... ok
+test private_and_vcard_authorization ... ok
+test privacy_migration_only_default_deny_jids ... ok
+test reads_timestamp_blocklist_and_keeps_metadata ... ok
+test roster_empty_name_and_foreign_group_ignored ... ok
+test purge_account_exact_files_preserves_others_and_extras ... ok
+test roster_preserves_subscription_and_metadata ... ok
+test subscription_handshake_and_cancel ... ok
+test legacy_bookmarks_respect_host_limit_and_read_over_256 ... ok
+test bookmarks_private_pep_bidirectional_and_private ... ok
+test legacy_migration_clears_source_after_success ... ok
+test password_change_after_purge_never_recreates_account ... ok
+test vcard_pep_conversion_and_avatar ... ok
+test creation_and_purge_are_serialized ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s
+
+     Running tests/storage_compat.rs (target/debug/deps/storage_compat-4143c7a6d1f37ff7)
+
+running 6 tests
+test empty_namespace_preserved ... ok
+test mixed_binary_roundtrip ... ok
+test stanza_roundtrip ... ok
+test rejects_cycles_code_and_bad_files ... ok
+test path_and_atomic_update ... ok
+test concurrent_updates_do_not_lose_entries ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/tls_binding.rs (target/debug/deps/tls_binding-b54da6a3dac30688)
+
+running 4 tests
+test malformed_der_and_pss_parameters_fail_closed ... ok
+test unknown_and_eddsa_algorithms_fail_closed ... ok
+test ecdsa_uses_certificate_signature_hash ... ok
+test rsa_signature_digest_and_weak_hash_upgrade ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+
+     Running tests/tls_plus_network.rs (target/debug/deps/tls_plus_network-c3c8506e59bf59bc)
+
+running 2 tests
+test disabling_plus_hides_bindings_and_accepts_scram_y_with_mechanisms_only_ssdp ... ok
+test starttls_scram_plus_binds_real_tls_and_authenticates_ssdp_sasl1_and_sasl2 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.99s
+
+   Doc-tests rust_xmpp
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Checking rust-xmpp v0.7.2 (/workspace/scratch/362577cdf2e0/rust-xmpp-next)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.96s
+   Compiling rust-xmpp v0.7.2 (/workspace/scratch/362577cdf2e0/rust-xmpp-next)
+    Finished `release` profile [optimized] target(s) in 23.74s
+PASS: integrated TCP roster/subscriptions, client IQ routing, CSI buffering/keepalive flush, MAM, blocking, OMEMO PEP, MUC, offline replay and SM resumption
+PASS: graceful SIGTERM shutdown
+PASS: independent SCRAM-SHA-1 over TLS, SASL1/SASL2, SSDP verification, server signatures and wrong-password rejection
+PASS: independent SCRAM-SHA-256 over TLS, SASL1/SASL2, SSDP verification, server signatures and wrong-password rejection
+PASS: Android TLS1.2 selector, TLS1.2/1.3 SCRAM SHA1/256 PLUS, SASL1/2, SSDP on/off and invalid binding rejection
+PASS: JSON file logging, TLS/auth/bind correlation, rejection reasons, secret redaction and SIGHUP rotation
+PASS: 20 TLS1.2/1.3 SASL1/2 cases: prepared PLAIN identities and canonical binds, invalid authz rejection, SCRAM abort/retry and active exchange restart
+PASS: WSS SCRAM-SHA-256 SASL1/SASL2 with GS2 y, absent CB/PLUS, SSDP without CB separator, server signatures, bind and ping
+PASS: SASL2 Bind2 TLS flow, inline SM/CSI/Carbons, private random resource, malformed requests, authentication failure and fallback
+PASS: bind2-disabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-disabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-enabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-enabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: sm-disabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: sm-disabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: enabled-False-registration-False
+PASS: enabled-False-registration-True
+PASS: enabled-True-registration-False
+PASS: enabled-True-registration-True
+PASS: Gajim domain/account discovery, both label catalogs, authenticated password changes, IBR registration gates and fresh logins
+PASS: SASL2 inline SM active/EOF resume, authenticated owner/id/h checks, replay ordering, full JID, Bind2 fallback and malformed requests
+PASS: TLS account/domain discovery with PEP and push enabled/disabled; real push enable, publish options, per-node and service-wide disable
+PASS: TLS Monocles/Conversations PEP first-run, no-to publishing, owner config recovery, migrated metadata, device item selectors and restart persistence
+PASS: TLS invitation command discovery, preapproval, single-use mutual roster, replay denial, unknown preauth forwarding/offline pending, account isolation
+PASS: TLS conflict_resolve=default, live and hibernating SM resources
+PASS: TLS conflict_resolve=kick_old, live and hibernating SM resources
+PASS: TLS conflict_resolve=kick_new, live and hibernating SM resources
+PASS: TLS conflict_resolve=increment, live and hibernating SM resources
+PASS: TLS conflict_resolve=random, live and hibernating SM resources
+PASS: integrated WSS + HTTPS BOSH SASL/bind, CSI, inherited BOSH namespaces, roster, bidirectional chat, upload IQ/PUT/GET/reuse, graceful SM close and same-resource relogin under kick_new
+{
+  "total_load_wall_seconds": 6.652,
+  "requested_resources": 500,
+  "authenticated_bound_resources": 500,
+  "connection_setup_concurrency": 50,
+  "setup_wall_seconds": 0.558,
+  "setup_latency": {
+    "samples": 500,
+    "median_ms": 51.57,
+    "p95_ms": 70.794,
+    "max_ms": 90.506
+  },
+  "ping_rounds": 10,
+  "ping_round_trip": {
+    "samples": 5000,
+    "median_ms": 13.511,
+    "p95_ms": 22.338,
+    "max_ms": 26.333
+  },
+  "accounts": 100,
+  "message_rounds": 10,
+  "messages_sent": 5000,
+  "messages_received": 5000,
+  "message_batch_seconds": 3.813,
+  "metrics_before": {
+    "rss_kib": 7756,
+    "cpu_seconds": 0.0,
+    "fd_count": 11
+  },
+  "metrics_connected": {
+    "rss_kib": 26100,
+    "cpu_seconds": 1.05,
+    "fd_count": 511
+  },
+  "metrics_after_workload": {
+    "rss_kib": 26844,
+    "cpu_seconds": 7.63,
+    "fd_count": 511
+  },
+  "metrics_two_seconds_after_disconnect": {
+    "rss_kib": 26844,
+    "cpu_seconds": 7.67,
+    "fd_count": 11
+  },
+  "sampled_peak_rss_kib": 26844,
+  "fd_delta_after_disconnect": 0,
+  "failures": [],
+  "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+  "mam": {
+    "archive_files": 100,
+    "records": 10000,
+    "expected_records": 10000
+  }
+}
+   Compiling rust-xmpp v0.7.2 (/workspace/scratch/362577cdf2e0/rust-xmpp-next)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.57s
+     Running tests/csi_native.rs (target/debug/deps/csi_native-571cd230980015ef)
+
+running 1 test
+test native_prosody_csi_importance_matches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/muc_native.rs (target/debug/deps/muc_native-5fac279d2047e8c2)
+
+running 1 test
+test actual_prosody_muc_mam_reads_rust_and_writes_native_archive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/preauth_native.rs (target/debug/deps/preauth_native-a9ed19090296a4bb)
+
+running 1 test
+test native_prosody_invitation_tokens_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/pubsub_native.rs (target/debug/deps/pubsub_native-d8eeede39db97351)
+
+running 1 test
+test native_prosody_pep_reads_rust_and_rust_reads_native ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/push.rs (target/debug/deps/push-5ab8fb3185d73ee1)
+
+running 1 test
+test native_push_body_lookup_excludes_extensions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s
+
+     Running tests/reference_prosody.rs (target/debug/deps/reference_prosody-031392d8372a1a25)
+
+running 1 test
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-1
+PROSODY_NATIVE_FINAL_OK SHA-1
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-256
+PROSODY_NATIVE_FINAL_OK SHA-256
+test real_prosody_storage_and_auth_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+
+   Compiling rust-xmpp v0.7.2 (/workspace/scratch/362577cdf2e0/rust-xmpp-next)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.23s
+     Running tests/federation_tls.rs (target/debug/deps/federation_tls-e0152fda4a1323e9)
+
+running 1 test
+test native_prosody_tls_external_bidirectional ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.56s
+

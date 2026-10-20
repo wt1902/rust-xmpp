@@ -1,0 +1,1 @@
+PASS: integrated WSS + HTTPS BOSH SASL/bind, CSI, inherited BOSH namespaces, roster, bidirectional chat, upload IQ/PUT/GET/reuse

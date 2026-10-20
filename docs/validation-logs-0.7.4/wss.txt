@@ -1,0 +1,1 @@
+PASS: HTTPS-only configured interfaces (127.0.0.1,::1), verified TLS, reproduced original Origin 403 then allowed Converse Origin 101, xmpp subprotocol, both WS paths, RFC 7395 open/features/close and private HTTP diagnostics

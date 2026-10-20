@@ -1,0 +1,23 @@
+SERVER LOG:
+Rust XMPP experimental: localhost; configured listeners started
+
+Traceback (most recent call last):
+  File "/workspace/scratch/362577cdf2e0/rust-xmpp-next/tests/sasl_web_network.py", line 172, in <module>
+    main()
+  File "/workspace/scratch/362577cdf2e0/rust-xmpp-next/tests/sasl_web_network.py", line 155, in main
+    asyncio.run(exercise(https_port, ssl.create_default_context(cafile=str(cert))))
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/workspace/scratch/362577cdf2e0/rust-xmpp-next/tests/sasl_web_network.py", line 118, in exercise
+    await authenticate(ws, sasl2)
+  File "/workspace/scratch/362577cdf2e0/rust-xmpp-next/tests/sasl_web_network.py", line 82, in authenticate
+    assert attrs.get('h') == expected_ssdp, (attrs.get('h'), expected_ssdp)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('UzQajgapjuoNRETKCNV1g1zapAbBiaY9mIhExQJWVpQ=', 'Rgy1OtqF8B/re2ip4rVzs2herVHnECfKbsLqKQgUMgo=')

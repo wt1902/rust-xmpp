@@ -1,0 +1,54 @@
+{
+  "total_load_wall_seconds": 7.969,
+  "requested_resources": 500,
+  "authenticated_bound_resources": 500,
+  "connection_setup_concurrency": 50,
+  "setup_wall_seconds": 0.842,
+  "setup_latency": {
+    "samples": 500,
+    "median_ms": 72.641,
+    "p95_ms": 134.723,
+    "max_ms": 156.502
+  },
+  "ping_rounds": 10,
+  "ping_round_trip": {
+    "samples": 5000,
+    "median_ms": 13.945,
+    "p95_ms": 22.704,
+    "max_ms": 26.79
+  },
+  "accounts": 100,
+  "message_rounds": 10,
+  "messages_sent": 5000,
+  "messages_received": 5000,
+  "message_batch_seconds": 4.825,
+  "metrics_before": {
+    "rss_kib": 7284,
+    "cpu_seconds": 0.0,
+    "fd_count": 11
+  },
+  "metrics_connected": {
+    "rss_kib": 25952,
+    "cpu_seconds": 1.09,
+    "fd_count": 511
+  },
+  "metrics_after_workload": {
+    "rss_kib": 26672,
+    "cpu_seconds": 8.34,
+    "fd_count": 511
+  },
+  "metrics_two_seconds_after_disconnect": {
+    "rss_kib": 26736,
+    "cpu_seconds": 8.38,
+    "fd_count": 11
+  },
+  "sampled_peak_rss_kib": 26736,
+  "fd_delta_after_disconnect": 0,
+  "failures": [],
+  "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+  "mam": {
+    "archive_files": 100,
+    "records": 10000,
+    "expected_records": 10000
+  }
+}

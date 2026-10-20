@@ -1,0 +1,101 @@
+   Compiling rust-xmpp v0.7.1 (/tmp/xmpp071-authbaseline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.63s
+     Running tests/iq_errors.rs (target/debug/deps/iq_errors-9f3d8fea07105697)
+
+running 2 tests
+test server_errors_without_target_remain_unaddressed_and_escape_attributes ... FAILED
+test pep_errors_identify_the_account_and_echo_the_request ... FAILED
+
+failures:
+
+---- server_errors_without_target_remain_unaddressed_and_escape_attributes stdout ----
+
+thread 'server_errors_without_target_remain_unaddressed_and_escape_attributes' (519) panicked at tests/iq_errors.rs:29:9:
+assertion `left == right` failed
+  left: None
+ right: Some("alice&bob@example.test")
+
+---- pep_errors_identify_the_account_and_echo_the_request stdout ----
+
+thread 'pep_errors_identify_the_account_and_echo_the_request' (518) panicked at tests/iq_errors.rs:9:5:
+assertion `left == right` failed
+  left: None
+ right: Some("alice@example.test")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pep_errors_identify_the_account_and_echo_the_request
+    server_errors_without_target_remain_unaddressed_and_escape_attributes
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test iq_errors`
+    Blocking waiting for file lock on build directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.24s
+     Running tests/pep_client_interop.rs (target/debug/deps/pep_client_interop-56e0c80e02b9bca7)
+
+running 3 tests
+test publish_options_match_implicit_notification_defaults_on_old_nodes ... FAILED
+test missing_own_omemo_bundle_returns_recoverable_item_not_found ... ok
+test avatar_and_omemo_publish_options_support_readback_and_caps_notifications ... ok
+
+failures:
+
+---- publish_options_match_implicit_notification_defaults_on_old_nodes stdout ----
+
+thread 'publish_options_match_implicit_notification_defaults_on_old_nodes' (19) panicked at tests/pep_client_interop.rs:198:5:
+["<iq xmlns='jabber:client' type='error' id='publish'><error type='cancel'><conflict xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/><precondition-not-met xmlns='http://jabber.org/protocol/pubsub#errors'/></error></iq>"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    publish_options_match_implicit_notification_defaults_on_old_nodes
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `--test pep_client_interop`
+   Compiling rust-xmpp v0.7.1 (/tmp/xmpp071-authbaseline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running tests/pep_client_interop.rs (target/debug/deps/pep_client_interop-56e0c80e02b9bca7)
+
+running 1 test
+test migrated_native_configuration_can_roundtrip_access_model_edit ... FAILED
+
+failures:
+
+---- migrated_native_configuration_can_roundtrip_access_model_edit stdout ----
+
+thread 'migrated_native_configuration_can_roundtrip_access_model_edit' (106) panicked at tests/pep_client_interop.rs:241:5:
+assertion failed: !get.replies[0].contains("pubsub#payload_type")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    migrated_native_configuration_can_roundtrip_access_model_edit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `--test pep_client_interop`
+   Compiling rust-xmpp v0.7.1 (/tmp/xmpp071-authbaseline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running tests/pep_client_interop.rs (target/debug/deps/pep_client_interop-56e0c80e02b9bca7)
+
+running 1 test
+test migrated_native_configuration_can_roundtrip_access_model_edit ... FAILED
+
+failures:
+
+---- migrated_native_configuration_can_roundtrip_access_model_edit stdout ----
+
+thread 'migrated_native_configuration_can_roundtrip_access_model_edit' (106) panicked at tests/pep_client_interop.rs:258:5:
+["<iq xmlns='jabber:client' type='error' id='set-config'><error type='cancel'><feature-not-implemented xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/></error></iq>"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    migrated_native_configuration_can_roundtrip_access_model_edit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `--test pep_client_interop`

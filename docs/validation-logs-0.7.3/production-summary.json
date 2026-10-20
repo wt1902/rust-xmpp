@@ -1,0 +1,13 @@
+{
+  "version": "0.7.2",
+  "authorization_successes": 9,
+  "pubsub_iq_records": 126,
+  "omemo_iq_results": 41,
+  "omemo_iq_errors": 0,
+  "pubsub_error_classes": {
+    "item-not-found": 4,
+    "forbidden": 1
+  },
+  "user_confirmed_force_stop": true,
+  "caveat": "Original records contain neither item counts nor payload structure; no exact deployed PEP cause established"
+}

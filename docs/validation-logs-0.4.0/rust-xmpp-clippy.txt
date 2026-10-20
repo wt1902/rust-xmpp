@@ -1,0 +1,2 @@
+    Checking rust-xmpp v0.4.0 (/workspace/scratch/362577cdf2e0/rust-xmpp)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.09s

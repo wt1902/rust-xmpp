@@ -1,0 +1,43 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/csi_native.rs (target/debug/deps/csi_native-295ef60d9761ac35)
+
+running 1 test
+test native_prosody_csi_importance_matches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/muc_native.rs (target/debug/deps/muc_native-5a83afb0c392f358)
+
+running 1 test
+test actual_prosody_muc_mam_reads_rust_and_writes_native_archive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/pubsub_native.rs (target/debug/deps/pubsub_native-452af5a83e8c375b)
+
+running 1 test
+test native_prosody_pep_reads_rust_and_rust_reads_native ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/push.rs (target/debug/deps/push-50e169110c02e394)
+
+running 1 test
+test native_push_body_lookup_excludes_extensions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s
+
+     Running tests/reference_prosody.rs (target/debug/deps/reference_prosody-84c92c3ddfcfccb6)
+
+running 1 test
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-1
+PROSODY_NATIVE_FINAL_OK SHA-1
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-256
+PROSODY_NATIVE_FINAL_OK SHA-256
+test real_prosody_storage_and_auth_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+

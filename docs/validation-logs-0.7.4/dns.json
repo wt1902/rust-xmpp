@@ -1,0 +1,14 @@
+[
+  {
+    "type": "DS",
+    "Status": 0,
+    "AD": false,
+    "Answer": null
+  },
+  {
+    "type": "DNSKEY",
+    "Status": 0,
+    "AD": false,
+    "Answer": null
+  }
+]

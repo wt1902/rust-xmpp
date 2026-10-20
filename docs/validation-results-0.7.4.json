@@ -1,0 +1,137 @@
+{
+  "version": "0.7.4",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 215,
+    "failed": 0,
+    "ignored": 10
+  },
+  "native_module_tests": 7,
+  "native_federation_tests": 1,
+  "clippy": "passed",
+  "fmt": "passed",
+  "release": "passed",
+  "wss": {
+    "original_configuration": "actual https://conversejs.wthome.ru Origin403, allowed https://wthome.ru control101",
+    "updated_configuration": "exact actual Origin101",
+    "verified_tls": true,
+    "configured_interfaces": [
+      "127.0.0.1",
+      "::1"
+    ],
+    "checks": [
+      "HTTP-only service without c2s/s2s",
+      "xmpp subprotocol requirements",
+      "both WebSocket paths",
+      "browser token-list Connection header",
+      "wrong Origin403/wrong subprotocol400/unknown path404",
+      "preauth RFC7395 close and websocket close",
+      "private TLS/HTTP diagnostics"
+    ],
+    "production_endpoint_probe": "DNS resolution failed in development environment; live endpoint not verified"
+  },
+  "pep": {
+    "production_log_analysis": {
+      "server_version": "0.7.3",
+      "json_records": 201,
+      "own_omemo_iq": 12,
+      "own_omemo_errors": 0,
+      "own_omemo_device_xml_counts": [
+        1,
+        2,
+        6
+      ],
+      "confirmed_browser_origin": "https://conversejs.wthome.ru",
+      "exact_pep_cause_proven": false
+    },
+    "diagnostics": [
+      "legacy/omemo2 device_protocol",
+      "unique Java signed32 valid_device_count and invalid_device_count",
+      "notification-generated content_present with no IDs/keys/XML"
+    ],
+    "unit_tests": 6,
+    "wire": "STARTTLS replay/live events, deliberate deliver_payloads=false yields payloadless notification while IQ intact, redaction",
+    "client_log_available": false,
+    "exact_production_cause_fixed": false
+  },
+  "client_filter": "manual synthetic input emits only fixed warning categories, excludes fixture private data",
+  "dnssec_read_only": [
+    {
+      "type": "DS",
+      "Status": 0,
+      "AD": false,
+      "Answer": null
+    },
+    {
+      "type": "DNSKEY",
+      "Status": 0,
+      "AD": false,
+      "Answer": null
+    }
+  ],
+  "previous_regressions": "passed",
+  "load": {
+    "total_load_wall_seconds": 7.856,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.632,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 57.745,
+      "p95_ms": 76.618,
+      "max_ms": 120.568
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 14.512,
+      "p95_ms": 19.865,
+      "max_ms": 23.436
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 4.919,
+    "metrics_before": {
+      "rss_kib": 7328,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 26316,
+      "cpu_seconds": 1.15,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 26872,
+      "cpu_seconds": 8.19,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 26872,
+      "cpu_seconds": 8.23,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 26872,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "release_binary_sha256": "65fea1809856e88949e85f476a4349d919bcc7002561c2cb174e561213066a6e",
+  "limitations": [
+    "Converse browser UI and live production endpoint not run; working YAML must be changed by operator",
+    "Remaining PEP broken status unexplained by supplied server log; no claim fixed",
+    "Current client master predicates may differ from installed app",
+    "Synthetic OMEMO bytes test transport/storage, not cryptography",
+    "DNSSEC zone signing/registrar DS unchanged",
+    "Other deployment/full data migration/APNs/FCM/parity limitations in COMPATIBILITY.md",
+    "Large archive last checked0.5.0, AF_UNIX admin needs target host validation"
+  ]
+}

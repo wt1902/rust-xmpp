@@ -1,0 +1,138 @@
+global:
+  admins:
+  - wt@wthome.ru
+  allow_registration: true
+  allow_unencrypted_plain_auth: false
+  archive_expires_after: never
+  c2s_ports:
+  - 5222
+  c2s_require_encryption: true
+  consider_bosh_secure: true
+  consider_websocket_secure: true
+  data_path: /var/lib/prosody
+  default_archive_policy: true
+  external_addresses:
+  - 88.204.18.107
+  http_cors_override:
+    bosh:
+      enabled: true
+      origins:
+      - https://wthome.ru
+    websocket:
+      enabled: true
+      origins:
+      - https://wthome.ru
+  http_interfaces:
+  - '*'
+  http_ports:
+  - 5280
+  https_interfaces:
+  - '*'
+  https_ports:
+  - 5281
+  interfaces:
+  - 0.0.0.0
+  - '::'
+  limits:
+    c2s:
+      rate: 100kb/s
+    s2sin:
+      rate: 300kb/s
+  log:
+    error: '*console'
+    info: '*console'
+  modules_enabled:
+  - roster
+  - saslauth
+  - tls
+  - disco
+  - pep_simple
+  - private
+  - pep
+  - vcard_legacy
+  - carbons
+  - mam
+  - smacks
+  - csi_simple
+  - turn_external
+  - register
+  - blocklist
+  - bookmarks
+  - ping
+  - time
+  - version
+  - uptime
+  - websocket
+  - bosh
+  - admin_shell
+  - cloud_notify
+  - s2s
+  - s2s_auth_certs
+  - seclabels
+  - sasl_ssdp
+  - sasl2
+  pep_max_items: 10000
+  push_max_devices: 50
+  push_max_errors: 32
+  push_max_hibernation_timeout: 259200
+  push_notification_important_body: New message
+  push_notification_with_body: true
+  push_notification_with_sender: true
+  s2s_ports:
+  - 5269
+  s2s_require_encryption: true
+  s2s_secure_auth: true
+  security_labels:
+    default_policy: default
+    policies:
+      default:
+        classifications:
+        - default: true
+          name: Unclassified
+        - name: Confidential
+        - name: Secret
+        - name: Top Secret
+  smacks_hibernation_time: 300
+  smacks_max_unacked: 100
+  turn_external_host: turn.wthome.ru
+  turn_external_port: 3478
+  turn_external_secret: TEST-ONLY-NOT-A-REAL-SECRET
+  turn_external_ttl: 86400
+  vcard_avatar:
+    sync_to_pep: true
+    sync_to_vcard: true
+hosts:
+  conference.wthome.ru:
+    component: muc
+    options:
+      load_global_modules: false
+      mam_muc_archive_expires_after: 1w
+      max_history_messages: 100
+      modules_enabled:
+      - muc_mam
+      muc_tombstones: true
+      name: Conference Rooms
+      restrict_room_creation: local
+  pubsub.wthome.ru:
+    component: pubsub
+    options:
+      load_global_modules: false
+      name: PubSub Service
+      restrict_node_creation: false
+  upload.wthome.ru:
+    component: http_file_share
+    options:
+      http_file_share_expires_after: never
+      http_file_share_global_quota: 107374182400
+      http_file_share_size_limit: 10737418240
+      load_global_modules: false
+      name: File Sharing
+  wthome.ru:
+    component: null
+    options:
+      authentication: internal_hashed
+      modules_enabled:
+      - mam
+      ssl:
+        certificate: /etc/prosody/certs/fullchain.pem
+        key: /etc/prosody/certs/privkey.pem

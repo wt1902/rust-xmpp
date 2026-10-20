@@ -1,0 +1,13 @@
+{
+  "server_version": "0.7.3",
+  "json_records": 201,
+  "own_omemo_iq": 12,
+  "own_omemo_errors": 0,
+  "own_omemo_device_xml_counts": [
+    1,
+    2,
+    6
+  ],
+  "confirmed_browser_origin": "https://conversejs.wthome.ru",
+  "exact_pep_cause_proven": false
+}

@@ -1,0 +1,2 @@
+PASS: integrated TCP roster/subscriptions, client IQ routing, CSI buffering/keepalive flush, MAM, blocking, OMEMO PEP, MUC, offline replay and SM resumption
+PASS: graceful SIGTERM shutdown

@@ -1,0 +1,107 @@
+{
+  "version": "0.7.1",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 196,
+    "failed": 0,
+    "ignored": 9
+  },
+  "native_module_tests": 6,
+  "native_federation_tests": 1,
+  "clippy": "passed",
+  "fmt": "passed",
+  "release": "passed",
+  "new_regressions": {
+    "cached_inline": {
+      "status": "passed",
+      "configurations": 6,
+      "credentials": "independent SCRAM-SHA-1 and PLAIN, correct/wrong password",
+      "ssdp": "off/on",
+      "fallback": "bare SASL2 success then legacy bind and ping",
+      "bind2_enabled": "inline bound retained",
+      "disabled_sm_cached_resume": "ignored safely",
+      "baseline_070_auth_behavior": "reproduced malformed request before SCRAM challenge"
+    },
+    "gajim": {
+      "status": "passed",
+      "configurations": 4,
+      "discovery": "domain/own-account security labels+registration feature predicates",
+      "operations": [
+        "catalog2/0 target echo",
+        "authenticated register GET",
+        "password change + fresh login",
+        "public registration gates + fresh login",
+        "cancellation IQ + rejected subsequent login"
+      ]
+    },
+    "label_catalog_unit": {
+      "status": "passed",
+      "tests": 6,
+      "policy_adapter": "actual example config/classifications, field mapping, 15 invalid/unknown schemas, no ACL enforcement"
+    },
+    "logging": "same target level unions and console alias unit; distinct targets and reopen tests pass"
+  },
+  "previous_network_regressions": "passed",
+  "load": {
+    "total_load_wall_seconds": 7.969,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.842,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 72.641,
+      "p95_ms": 134.723,
+      "max_ms": 156.502
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 13.945,
+      "p95_ms": 22.704,
+      "max_ms": 26.79
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 4.825,
+    "metrics_before": {
+      "rss_kib": 7284,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 25952,
+      "cpu_seconds": 1.09,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 26672,
+      "cpu_seconds": 8.34,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 26736,
+      "cpu_seconds": 8.38,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 26736,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "release_binary_sha256": "5c787ccbfffe759b40ec31ecbb8538cb98bee6fa9bf06166570b500012368fdd",
+  "limitations": [
+    "Real Conversations/monocles/Gajim device applications not run; reproduced wire paths match inspected source",
+    "Policy adapter is catalog metadata only; no ACL/enforcement",
+    "No production data/deployment/APNs/FCM verification",
+    "AF_UNIX admin requires permitted host; archive-large last run in0.5.0",
+    "Other functional gaps in COMPATIBILITY.md"
+  ]
+}

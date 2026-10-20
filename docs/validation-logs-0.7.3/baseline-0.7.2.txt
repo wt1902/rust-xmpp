@@ -1,0 +1,25 @@
+   Compiling rust-xmpp v0.7.2 (/tmp/xmpp072-orderbaseline)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.25s
+     Running tests/pep_item_order.rs (target/debug/deps/pep_item_order-ed2adfea48c80983)
+
+running 2 tests
+test native_prosody_orders_retained_pep_items_newest_first ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+test first_pep_item_is_current_device_list_even_with_retained_old_items ... FAILED
+
+failures:
+
+---- first_pep_item_is_current_device_list_even_with_retained_old_items stdout ----
+
+thread 'first_pep_item_is_current_device_list_even_with_retained_old_items' (463) panicked at tests/pep_item_order.rs:68:9:
+assertion `left == right` failed: <iq xmlns='jabber:client' type='result' id='order' from='alice@example.org'><pubsub xmlns='http://jabber.org/protocol/pubsub'><items node='eu.siacs.conversations.axolotl.devicelist'><item id='old'><list xmlns='eu.siacs.conversations.axolotl'></list></item><item id='current'><list xmlns='eu.siacs.conversations.axolotl'><device xmlns='eu.siacs.conversations.axolotl' id='42'></device></list></item></items></pubsub></iq>
+  left: Some("old")
+ right: Some("current")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    first_pep_item_is_current_device_list_even_with_retained_old_items
+
+test result: FAILED. 0 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `--test pep_item_order`

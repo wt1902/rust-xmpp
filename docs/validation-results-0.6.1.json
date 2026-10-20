@@ -1,0 +1,126 @@
+{
+  "version": "0.6.1",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 178,
+    "failed": 0,
+    "ignored": 9
+  },
+  "native_module_tests": 6,
+  "native_federation_tests": 1,
+  "clippy": "passed",
+  "fmt": "passed",
+  "release": "passed",
+  "new_regressions": {
+    "android_sasl_network": {
+      "status": "passed",
+      "cases": 32,
+      "tls_versions": [
+        "1.2",
+        "1.3"
+      ],
+      "hashes": [
+        "SHA-1",
+        "SHA-256"
+      ],
+      "sasl": [
+        "1",
+        "2"
+      ],
+      "ssdp": [
+        "off",
+        "on"
+      ],
+      "binding": "tls-server-end-point",
+      "bad_binding": "rejected"
+    },
+    "tls_plus_network": {
+      "status": "passed",
+      "exchanges": 14,
+      "exporter": "real TLS1.3 rustls export",
+      "endpoint": "TLS1.2 and TLS1.3",
+      "ssdp_full_feature_lists": "verified",
+      "no_plus_disabled_policy": "passed"
+    },
+    "sasl_web_network": {
+      "status": "passed",
+      "sasl": [
+        "1",
+        "2"
+      ],
+      "ssdp_no_cb_separator": "verified"
+    },
+    "certificate_binding": {
+      "status": "passed",
+      "tests": 4,
+      "algorithms": "RSA/ECDSA/DSA SHA1/224/256/384/512, MD5 upgrade, RSA-PSS; unsupported fail closed"
+    },
+    "old_060_failure_reproduction": {
+      "android_tls12": "4 rejected exchanges reproduced",
+      "wss_ssdp": "hash mismatch reproduced"
+    }
+  },
+  "network_previous_scenarios": "passed (TCP, SCRAM, Bind2, inline resume, discovery, preauth, resource policies, HTTPS BOSH/WSS/upload)",
+  "load": {
+    "total_load_wall_seconds": 6.467,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.617,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 55.521,
+      "p95_ms": 80.465,
+      "max_ms": 104.211
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 12.434,
+      "p95_ms": 21.835,
+      "max_ms": 28.842
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 3.583,
+    "metrics_before": {
+      "rss_kib": 6984,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 24764,
+      "cpu_seconds": 1.15,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 25300,
+      "cpu_seconds": 7.55,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 25364,
+      "cpu_seconds": 7.57,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 25364,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "release_binary_sha256": "62065ab91ae6fe5014695c52f5c85198db1160c73296f2295c60fb1fa8ce51d8",
+  "limitations": [
+    "No real Android/iOS client/device session; monocles version-specific fallback differs",
+    "No APNs/FCM gateway or production data/deployment verification",
+    "Unsupported EdDSA/unknown certificate hashes do not supply endpoint binding",
+    "AF_UNIX admin needs permitted host; prior environment attempt denied",
+    "Large archive test last run in 0.5.0; remaining functional gaps in COMPATIBILITY.md"
+  ]
+}

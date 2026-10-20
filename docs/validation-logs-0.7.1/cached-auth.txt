@@ -1,0 +1,6 @@
+PASS: bind2-disabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-disabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-enabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-enabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: sm-disabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: sm-disabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection

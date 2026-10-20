@@ -1,0 +1,1 @@
+PASS: reproduced 0.7.0 cached Bind2 rejection before SASL

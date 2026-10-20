@@ -1,0 +1,1 @@
+PASS: SASL2 Bind2 TLS flow, inline SM/CSI/Carbons, private random resource, malformed requests, authentication failure and fallback

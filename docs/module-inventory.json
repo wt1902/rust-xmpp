@@ -1,0 +1,475 @@
+{
+  "prosody_revision": "cafd74b9c5ea",
+  "community_revision_reported": "dddb6c34b964",
+  "note": "Literal dependency/source inventory for supplied revisions; status refers to implemented handlers, not complete module parity. See COMPATIBILITY.md and VALIDATION.md. Conditional dependencies and runtime load order not exhaustively resolved.",
+  "modules": [
+    {
+      "module": "admin_shell",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_admin_shell.lua",
+          "sha256": "e0a11e78a26a415f508e0487141a3d66086a408670e97d1363fd8f024fdd2160",
+          "literal_dependencies": [
+            "admin_socket"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "auth_internal_hashed",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_auth_internal_hashed.lua",
+          "sha256": "c6bbaede99e34c838afbb514780fb7fd40be3102d364cd586fe8f05a3c7b368d",
+          "literal_dependencies": [
+            "tokenauth"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "blocklist",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_blocklist.lua",
+          "sha256": "de7c95f1f988fc281560361a8eb14081e3efdeebebf89741fcb1bba25202931a",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "bookmarks",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_bookmarks.lua",
+          "sha256": "e08745b43a0b6d0b344aaca5cc1888e20022d4de9cec54135eecf36a573ab01d",
+          "literal_dependencies": [
+            "pep"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "bosh",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_bosh.lua",
+          "sha256": "cc5cb45d49467465d65629e5da46be226abdb1a2012ef4792afdabc2243d7b0c",
+          "literal_dependencies": [
+            "c2s",
+            "http",
+            "http_altconnect"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "carbons",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_carbons.lua",
+          "sha256": "0af69b32eb636bbd63757cdb5f0bf729d1304c4b5e527bb6baa2094872517db7",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "cloud_notify",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_cloud_notify.lua",
+          "sha256": "ffaaabc9e4a7a2e08f744937a85a91af61fa7043a41d6559e26209d49467eb46",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "csi_simple",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_csi_simple.lua",
+          "sha256": "170958270a8502fa92117daee20cb9f5b656d6098b4b8d2eb545ab4d723700bc",
+          "literal_dependencies": [
+            "csi"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "disco",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_disco.lua",
+          "sha256": "4bb50c2552248f852ea7ba63bc535b81f7ae1ec2fc627645987a97c70c10be6f",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "http_file_share",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_http_file_share.lua",
+          "sha256": "f4bded677570e6d6fff2fd3278a222457278b0509d53bca2492495bd37eb806a",
+          "literal_dependencies": [
+            "disco",
+            "http"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "mam",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_mam/mod_mam.lua",
+          "sha256": "fde9d1820b8fb10c8848089987c776a682d0972112b8a664fbaf8ab21489176b",
+          "literal_dependencies": [
+            "muc_mam"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "muc",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/muc/mod_muc.lua",
+          "sha256": "e808268c7af15f29501672adf77e9552397db89d0a5e25d6ce0b17455f3cd9ed",
+          "literal_dependencies": [
+            "adhoc",
+            "disco",
+            "muc_unique"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "muc_mam",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_muc_mam.lua",
+          "sha256": "3d432674daa67babbcb836c12df6d3ca34f574fbbe084549f54f24de7034ee31",
+          "literal_dependencies": [
+            "muc"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "pep",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_pep.lua",
+          "sha256": "b28ec7965480de6a62aecca3dd6ef48eae2a37b24bb288ae637c8d676a929919",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "pep_simple",
+      "rust_status": "empty_upstream_noop",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_pep_simple.lua",
+          "sha256": "1d80b3e3d5dd37564847286272e0ee6323d58bb481bb366697fb2316411843b5",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "ping",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_ping.lua",
+          "sha256": "587f3b3791d453ea8538505aa0734474ff77686f18a76ff78253c957e6fd4673",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "private",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_private.lua",
+          "sha256": "257c8cc571e2ca5d1d9a726ffb9b8db73874dc2c7da4e2354a9198683c88c77a",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "pubsub",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_pubsub/mod_pubsub.lua",
+          "sha256": "e6a8de1d70bf4705953716f64388dec1df2b8617eb3fa7eababa2e24f735e335",
+          "literal_dependencies": [
+            "disco"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "register",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_register.lua",
+          "sha256": "20e01f67dc69d0987071e24b3a0e49cf51bd0daa4682eb7209beb5a654e0155c",
+          "literal_dependencies": [
+            "register_ibr",
+            "user_account_management",
+            "watchregistrations"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "roster",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_roster.lua",
+          "sha256": "8521a32488415481f4f06af714898f80767a87e992e1d185bbf711af4e63d030",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "s2s",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_s2s.lua",
+          "sha256": "ff5a322bf0e7e679a9b467c8c4af998856abdb49f0fa9e4dd2879e7ccdde369a",
+          "literal_dependencies": [
+            "s2s_auth_dane_in"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "s2s_auth_certs",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_s2s_auth_certs.lua",
+          "sha256": "8e08b302687fac666cc74d188af79606304b67e42901125e7b5b1e0b7974bec0",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "sasl2",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "community",
+          "path": "custom_plugins/mod_sasl2/mod_sasl2.lua",
+          "sha256": "825e967420cc59c7b943da62b5f22c8901121d858c88d359aed93fbe9efc2f36",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "sasl_ssdp",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "community",
+          "path": "custom_plugins/mod_sasl_ssdp/mod_sasl_ssdp.lua",
+          "sha256": "a9340b988a4de73167aa166082d036d1ae44f33e5640c305c7a0279c1605b83f",
+          "literal_dependencies": []
+        },
+        {
+          "source": "community",
+          "path": "custom_plugins/share/lua/5.4/mod_sasl_ssdp.lua",
+          "sha256": "a9340b988a4de73167aa166082d036d1ae44f33e5640c305c7a0279c1605b83f",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "saslauth",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_saslauth.lua",
+          "sha256": "9c2403d7271fcd73cc1dea63fcf05b10059467f3ae3ebaf26a42e3b682c8e3ea",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "seclabels",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "community",
+          "path": "custom_plugins/mod_seclabels/mod_seclabels.lua",
+          "sha256": "d6226f251edbab1e10371b655c4ab8ce0b6d2a40710a9b6f1c9e520c8f0a14d7",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "smacks",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_smacks.lua",
+          "sha256": "5c978b69b24a8a96042c2a52225995ada33956721083a925ff12bedea779f313",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "storage_internal",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_storage_internal.lua",
+          "sha256": "48daddc50dfbd310bf19c9ae04cdf47523a87ae3d7c66d6e5ba894e5135fe129",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "time",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_time.lua",
+          "sha256": "606571ee5960b98683f03a94bf693a010d76e505f12b77e1d222cb78beef5adf",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "tls",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_tls.lua",
+          "sha256": "c14fde3023f4080546c9f8a61f6e0b08dd0ee6854ddc9c685560987be548dd55",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "turn_external",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_turn_external.lua",
+          "sha256": "9ac80a1b85fcea9b43022293cd09127bb26c5f8ea96446ab97579abee995765f",
+          "literal_dependencies": [
+            "external_services"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "uptime",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_uptime.lua",
+          "sha256": "d34df20d7e4e114060584667bdc80fd2f407921b4c78e1de1d150fb4c6730854",
+          "literal_dependencies": [
+            "adhoc"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "vcard_legacy",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_vcard_legacy.lua",
+          "sha256": "7f4697723ce6803f58158390fc3b49428451336a61d9ab2a4b0035b681fa5baf",
+          "literal_dependencies": [
+            "pep"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "version",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_version.lua",
+          "sha256": "7664626d35c3b6d0a0a872f6daaf66255aeeae80a65e1f560c17ac56e69b8db1",
+          "literal_dependencies": []
+        }
+      ]
+    },
+    {
+      "module": "websocket",
+      "rust_status": "implemented_with_limits_see_COMPATIBILITY",
+      "candidates": [
+        {
+          "source": "core",
+          "path": "prosody-cafd74b9c5ea/plugins/mod_websocket.lua",
+          "sha256": "fc596425939d94a7843dbe5e188b8e4b9ee896822c88e43e4d34ee51b4cd6184",
+          "literal_dependencies": [
+            "c2s",
+            "http",
+            "http_altconnect"
+          ]
+        }
+      ]
+    }
+  ],
+  "runtime_version": "0.3.0"
+}

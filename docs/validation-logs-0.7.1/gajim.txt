@@ -1,0 +1,5 @@
+PASS: enabled-False-registration-False
+PASS: enabled-False-registration-True
+PASS: enabled-True-registration-False
+PASS: enabled-True-registration-True
+PASS: Gajim domain/account discovery, both label catalogs, authenticated password changes, IBR registration gates and fresh logins

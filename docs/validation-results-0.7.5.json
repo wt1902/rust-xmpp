@@ -1,0 +1,107 @@
+{
+  "version": "0.7.5",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 229,
+    "failed": 0,
+    "ignored": 10
+  },
+  "fmt": "passed",
+  "clippy": "passed",
+  "release": "passed",
+  "native_module_tests": 7,
+  "native_federation_tests": 1,
+  "http": {
+    "configuration": [
+      "global/host per-app http_paths",
+      "literal RFC3986 paths and percent encoding",
+      "host substitution",
+      "HTTP Host/fallback",
+      "external advertised URL prefix",
+      "custom upload internal mount independent of advertised URL"
+    ],
+    "proxy": [
+      "IP/CIDR trust",
+      "native Lua empty trusted_proxies table",
+      "legacy XFF/XFP",
+      "RFC7239 Forwarded",
+      "untrusted spoofing rejected",
+      "per-request secure admission",
+      "effective peer logging",
+      "fixed safe custom route diagnostics"
+    ],
+    "wire": [
+      "verified TLS terminating path rewriting loopback proxy",
+      "authenticated WS and BOSH restart/bind/ping in legacy and RFC7239 modes",
+      "cached BOSH RID retry",
+      "untrusted direct headers and TLSproxy rejected",
+      "trusted plaintext proto rejected",
+      "existing WSS and HTTP integration",
+      "upload custom path with host substitution IQ/PUT/GET/reuse"
+    ],
+    "native_divergence": "RFC7239 mode permits HTTPS termination on trusted HTTP backend; then all consumed preceding hops must be HTTPS"
+  },
+  "load": {
+    "total_load_wall_seconds": 7.057,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.598,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 54.637,
+      "p95_ms": 77.295,
+      "max_ms": 99.823
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 13.144,
+      "p95_ms": 24.011,
+      "max_ms": 26.702
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 4.178,
+    "metrics_before": {
+      "rss_kib": 8016,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 26416,
+      "cpu_seconds": 1.13,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 26896,
+      "cpu_seconds": 8.07,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 27024,
+      "cpu_seconds": 8.12,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 27024,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "release_binary_sha256": "bf742fcb7c77892e16dadaf6ddc3126b23a2513a80f69004325c77c171ef57bb",
+  "limitations": [
+    "Runtime exactly one VirtualHost with components",
+    "No PROXYv1/v2 or arbitrary Lua HTTP apps or hot route reload",
+    "Production proxy and browser UI not run; operator must merge configuration",
+    "Earlier reported PEP broken status remains unresolved; no PEP semantic changes in this release",
+    "DNSSEC zone and registrar DS unchanged",
+    "No claim full Prosody parity; see COMPATIBILITY.md"
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "version": "0.7.6",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 259,
+    "failed": 0,
+    "ignored": 11
+  },
+  "fmt": "passed",
+  "clippy": "passed",
+  "release": "passed",
+  "native_module_tests": 8,
+  "native_federation_tests": 1,
+  "muc": {
+    "extensions": [
+      "affiliation hats/legacy compat and spoof filtering",
+      "language/roominfo/config forms",
+      "private message and moderator policies",
+      "role-filtered presence/offline reserved affiliates",
+      "vcard/occupant-id disable flags",
+      "non-MAM history constraints/delay/subject",
+      "MAM public-room ACL/all_rooms/presence events/include_total/destroy cleanup"
+    ],
+    "state": [
+      "native occupant map, multiple resources and last message",
+      "graceful SIGTERM freeze before transport teardown",
+      "temporary and persistent rooms",
+      "exact authenticated full JID reactivation on available presence",
+      "canonical config fingerprint validation independent of Lua key order",
+      "durable one-time consumption before publish",
+      "fixed 300s deadline across repeated restarts",
+      "pending nick reservations and capacity accounting",
+      "no oversized presence/history shutdown DoS"
+    ],
+    "wire": "live STARTTLS connections at SIGTERM; restart restores room roles/presence/messages; wrong resource/account denied; explicit rejoin works",
+    "native_oracle": "Rust writes three sessions; actual Prosody restores resources/role/payload; native freeze writes changed role and presence; Rust reads them",
+    "unit_files": [
+      "muc_extensions.rs",
+      "muc_history.rs",
+      "muc_recovery.rs",
+      "muc_restart_state.rs"
+    ]
+  },
+  "load": {
+    "total_load_wall_seconds": 9.221,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.859,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 78.827,
+      "p95_ms": 112.823,
+      "max_ms": 141.228
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 24.812,
+      "p95_ms": 54.825,
+      "max_ms": 60.843
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 5.825,
+    "metrics_before": {
+      "rss_kib": 7884,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 25176,
+      "cpu_seconds": 1.33,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 25836,
+      "cpu_seconds": 11.24,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 25964,
+      "cpu_seconds": 11.28,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 25964,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "release_binary_sha256": "4cb267ce940968aed1644ccee5c7bc37f8ddc08f80542f9cb4ec63f35b365e42",
+  "limitations": [
+    "Recovery requires clean SIGTERM/Ctrl-C checkpoint; no new checkpoint on SIGKILL/power loss",
+    "300s grace/exact full JID/unchanged room config; otherwise ordinary client rejoin",
+    "Native checkpoints without Rust fingerprint are read by helper but do not authorize auto recovery",
+    "No cross-process TCP/TLS or SM resumption",
+    "History default100 configurable4096; occupants max4096; optional oversized checkpoint fields omitted",
+    "No arbitrary community Lua HTTP/MUC plugins; no complete full-server Prosody parity claim",
+    "Production migration/actual client interoperability/PEP broken status/DNSSEC remain unproven or unchanged"
+  ]
+}

@@ -1,0 +1,49 @@
+    Blocking waiting for file lock on build directory
+   Compiling rust-xmpp v0.5.0 (/workspace/scratch/362577cdf2e0/rust-xmpp-next)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.11s
+     Running tests/csi_native.rs (target/debug/deps/csi_native-eba98d9cb4d5f495)
+
+running 1 test
+test native_prosody_csi_importance_matches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/muc_native.rs (target/debug/deps/muc_native-addf0f4a2dc96ddd)
+
+running 1 test
+test actual_prosody_muc_mam_reads_rust_and_writes_native_archive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/preauth_native.rs (target/debug/deps/preauth_native-ccb4b485a667f0f8)
+
+running 1 test
+test native_prosody_invitation_tokens_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/pubsub_native.rs (target/debug/deps/pubsub_native-28e6095e22e2420b)
+
+running 1 test
+test native_prosody_pep_reads_rust_and_rust_reads_native ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/push.rs (target/debug/deps/push-99eb4de72a25a307)
+
+running 1 test
+test native_push_body_lookup_excludes_extensions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s
+
+     Running tests/reference_prosody.rs (target/debug/deps/reference_prosody-1275958eb2356dc6)
+
+running 1 test
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-1
+PROSODY_NATIVE_FINAL_OK SHA-1
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-256
+PROSODY_NATIVE_FINAL_OK SHA-256
+test real_prosody_storage_and_auth_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+

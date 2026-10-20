@@ -1,0 +1,125 @@
+{
+  "version": "0.7.3",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 208,
+    "failed": 0,
+    "ignored": 10
+  },
+  "native_module_tests": 7,
+  "native_federation_tests": 1,
+  "clippy": "passed",
+  "fmt": "passed",
+  "release": "passed",
+  "new_regressions": {
+    "ordering": {
+      "baseline": "exact0.7.2 source archive returns old empty list before current populated list, failing first-item client parser",
+      "fixed": "newest-first for all/recent-N reads; no retention changes",
+      "native_oracle": "actual mod_pep on same records returns current,old",
+      "wire": "TLS Android first-item parser, current replacement, restart persistence"
+    },
+    "logging": {
+      "target_scope": "safe target classification without actual target",
+      "successful_items": [
+        "items_count",
+        "first_content_kind",
+        "first_device_count"
+      ],
+      "privacy": "wire test asserts no device IDs or raw node in INFO JSON; lib test no item IDs or key bytes",
+      "semantics": "structural counts only, not cryptographic validity"
+    }
+  },
+  "production_log_analysis": {
+    "version": "0.7.2",
+    "authorization_successes": 9,
+    "pubsub_iq_records": 126,
+    "omemo_iq_results": 41,
+    "omemo_iq_errors": 0,
+    "pubsub_error_classes": {
+      "item-not-found": 4,
+      "forbidden": 1
+    },
+    "user_confirmed_force_stop": true,
+    "caveat": "Original records contain neither item counts nor payload structure; no exact deployed PEP cause established"
+  },
+  "dnssec_read_only": [
+    {
+      "name": "wthome.ru",
+      "type": "DS",
+      "Status": 0,
+      "AD": false,
+      "Answer": null
+    },
+    {
+      "name": "wthome.ru",
+      "type": "DNSKEY",
+      "Status": 0,
+      "AD": false,
+      "Answer": null
+    }
+  ],
+  "previous_network_regressions": "passed",
+  "load": {
+    "total_load_wall_seconds": 6.869,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.56,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 49.877,
+      "p95_ms": 77.482,
+      "max_ms": 85.857
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 13.502,
+      "p95_ms": 22.717,
+      "max_ms": 25.971
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 4.027,
+    "metrics_before": {
+      "rss_kib": 7592,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 25772,
+      "cpu_seconds": 1.02,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 26420,
+      "cpu_seconds": 7.81,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 26484,
+      "cpu_seconds": 7.84,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 26484,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "release_binary_sha256": "21a1f5f8a1627182f1cbfe8f568c3156c265b2b991fd3c1790d8d3f7eea6c34f",
+  "limitations": [
+    "Production multi-item config/payload unavailable; exact deployed PEP failure remains unproven",
+    "Actual Android/Monal/Gajim applications not run",
+    "Synthetic OMEMO payload fixtures test protocol/storage only",
+    "DNSSEC signing/registrar DS not changed",
+    "Other parity/deployment/APNs/FCM/live-session durability gaps in COMPATIBILITY.md",
+    "AF_UNIX admin needs permitted host; archive-large last checked0.5.0"
+  ]
+}

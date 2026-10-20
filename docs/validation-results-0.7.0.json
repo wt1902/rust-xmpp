@@ -1,0 +1,112 @@
+{
+  "version": "0.7.0",
+  "date_utc": "2026-10-20",
+  "ordinary_tests": {
+    "passed": 187,
+    "failed": 0,
+    "ignored": 9
+  },
+  "native_module_tests": 6,
+  "native_federation_tests": 1,
+  "clippy": "passed",
+  "fmt": "passed",
+  "release": "passed",
+  "new_regressions": {
+    "logging_unit": {
+      "status": "passed",
+      "tests": 8,
+      "coverage": [
+        "level maps/exact ranges/sets",
+        "plain/json timestamps and escaping",
+        "sensitive-key redaction",
+        "append0600",
+        "thread serialization",
+        "reopen rotation and failed-reopen preserves old handles"
+      ]
+    },
+    "logging_network": {
+      "status": "passed",
+      "scenarios": 8,
+      "coverage": [
+        "TLS/auth/bind correlation",
+        "wrong PLAIN password",
+        "invalid SCRAM proof",
+        "invalid TLS binding",
+        "disconnect during challenge",
+        "unknown account",
+        "corrupt account",
+        "SIGHUP reopen and login"
+      ],
+      "secret_and_message_body_leaks": "none in tested records"
+    },
+    "sasl_retry_network": {
+      "status": "passed",
+      "cases": 20,
+      "coverage": "TLS1.2/1.3 SASL1/2, normalized names/authz, aborted retry, active exchange restart and canonical bind"
+    }
+  },
+  "network_previous_scenarios": "passed: SCRAM/PLUS/SSDP/Android, WSS, TCP, Bind2, inline resume, discovery, preauth, resource policies, HTTPS BOSH/upload",
+  "load": {
+    "total_load_wall_seconds": 7.064,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.696,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 66.672,
+      "p95_ms": 83.122,
+      "max_ms": 91.585
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 14.572,
+      "p95_ms": 23.767,
+      "max_ms": 26.397
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 4.058,
+    "metrics_before": {
+      "rss_kib": 7508,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 25632,
+      "cpu_seconds": 1.22,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 26264,
+      "cpu_seconds": 7.95,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 26328,
+      "cpu_seconds": 7.98,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 26328,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "release_binary_sha256": "f6630bb076ab533f3a917c7375ad6ca5789e6e2cf60d78d2edd33320dbf23910",
+  "limitations": [
+    "Remaining real Conversations/monocles rejection not reproduced; server log from actual attempt required",
+    "No real Android/iOS device or APNs/FCM gateway session",
+    "Logging coverage is operational/auth subset; no syslog/plugin sinks, full hot reload, mixed Lua log tables or all module logs",
+    "No production deployment/data/Docker verification",
+    "AF_UNIX admin needs permitted host; archive-large last run in0.5.0",
+    "Other functional gaps in COMPATIBILITY.md"
+  ]
+}

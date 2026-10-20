@@ -1,0 +1,16 @@
+[
+  {
+    "name": "wthome.ru",
+    "type": "DS",
+    "Status": 0,
+    "AD": false,
+    "Answer": null
+  },
+  {
+    "name": "wthome.ru",
+    "type": "DNSKEY",
+    "Status": 0,
+    "AD": false,
+    "Answer": null
+  }
+]
