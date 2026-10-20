@@ -232,3 +232,9 @@ recovery Rust служит собственный журнал. Перед от�
 не выполняются; неизвестные явно включённые MUC-модули отклоняются при запуске.
 Результаты проверки — в
 [docs/VALIDATION-0.8.0.md](docs/VALIDATION-0.8.0.md).
+
+## GitHub Actions и Gitea Registry
+
+Полные тесты, Linux binary artifact и Docker push после проверок:
+[настройка workflow](docs/GITHUB-ACTIONS.md). Registry и credentials задаются
+через GitHub Actions variables/secrets.

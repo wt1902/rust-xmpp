@@ -4,14 +4,23 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 RUN cargo build --release --locked
 
-FROM debian:trixie-slim
+FROM debian:trixie-slim AS runtime-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates gosu \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /src/target/release/rust-xmpp /usr/local/bin/rust-xmpp
-RUN ln -s /usr/local/bin/rust-xmpp /usr/local/bin/prosodyctl
 COPY scripts/docker-entrypoint.sh /usr/local/bin/rust-xmpp-entrypoint
 RUN chmod 0755 /usr/local/bin/rust-xmpp-entrypoint
 WORKDIR /work
 ENTRYPOINT ["rust-xmpp-entrypoint"]
 CMD ["serve", "/etc/prosody/prosody.cfg.lua", "--experimental"]
+
+# CI downloads the exact executable produced by the verification job.
+FROM runtime-base AS ci-runtime
+COPY dist/rust-xmpp /usr/local/bin/rust-xmpp
+RUN chmod 0755 /usr/local/bin/rust-xmpp \
+    && ln -s /usr/local/bin/rust-xmpp /usr/local/bin/prosodyctl
+
+# Default local build still compiles directly from source.
+FROM runtime-base AS runtime
+COPY --from=builder /src/target/release/rust-xmpp /usr/local/bin/rust-xmpp
+RUN ln -s /usr/local/bin/rust-xmpp /usr/local/bin/prosodyctl
