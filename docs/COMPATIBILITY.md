@@ -166,3 +166,9 @@ ad-hoc destroy/set-affiliation. Общие и host `modules_disabled` приме
 Ограничения журнала, native-экспорта и отката:
 [MUC-RECOVERY.md](MUC-RECOVERY.md). Итоги проверки:
 [VALIDATION-0.8.0.md](VALIDATION-0.8.0.md).
+
+## Durable IO0.8.3
+
+MAM/SM используют authoritative redo sidecars. Перед сменой writer или откатом
+на старую версию требуется offline `storage-checkpoint CONFIG`; после аварии
+нельзя просто удалить sidecars. Подробности — [DURABLE-MESSAGE-IO.md](DURABLE-MESSAGE-IO.md).

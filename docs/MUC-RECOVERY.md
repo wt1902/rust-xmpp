@@ -80,7 +80,10 @@ Native state без подтверждающих Rust-метаданных са�
 восстановление. Это не универсальное слияние параллельных записей двух серверов.
 
 Для отката на Prosody остановите Rust и сохраните резервную копию всего
-`data_path`. Prosody использует native-экспорт и не читает Rust-журнал. Перед
+`data_path`. Начиная с0.8.3 перед сменой writer выполните новым binary
+`rust-xmpp storage-checkpoint CONFIG`: он фиксирует MAM redo и SM JSON exports.
+Это не перенос Rust SM-сессий в Prosody и не универсальная конверсия MUC journal.
+Подробности — [DURABLE-MESSAGE-IO.md](DURABLE-MESSAGE-IO.md). Prosody использует native-экспорт и не читает Rust-журнал. Перед
 возвратом с Prosody на Rust согласуйте данные и устраните устаревший
 `rust_muc_checkpoint` в остановленном экземпляре: иначе неизменившиеся native
 файлы могут быть приняты за экспорт предыдущего поколения Rust. Удаление

@@ -1,0 +1,209 @@
+{
+  "version": "0.8.3",
+  "date_utc": "2026-10-21",
+  "release_binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "ordinary_tests": {
+    "passed": 334,
+    "failed": 0,
+    "ignored": 11
+  },
+  "fmt": "passed",
+  "clippy": "passed",
+  "release": "passed",
+  "full_verify": "passed in one final frozen-source run",
+  "native_module_tests": 8,
+  "native_federation_tests": 1,
+  "extra_large_archive_tests": 1,
+  "ignored_not_run": [
+    "AF_UNIX admin_socket"
+  ],
+  "load": {
+    "general_tls_clients": 500,
+    "general_accounts": 100,
+    "muc_sm": {
+      "clients": 500,
+      "accounts": 100,
+      "rooms": 10,
+      "message_rounds": 3,
+      "concurrency": 20,
+      "binary": "/tmp/xmpp-durable-muc-load-ssixqqk9/rust-xmpp",
+      "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+      "before": {
+        "rss_kib": 9516,
+        "cpu_seconds": 0.01,
+        "fd_count": 12
+      },
+      "connect_seconds": 12.048,
+      "connect_latency": {
+        "samples": 500,
+        "median_ms": 398.044,
+        "p95_ms": 1086.236,
+        "max_ms": 1403.7
+      },
+      "phase": "completed",
+      "status": "pass",
+      "elapsed_seconds": 128.38,
+      "join_seconds": 94.493,
+      "joined": {
+        "rss_kib": 41828,
+        "cpu_seconds": 55.61,
+        "fd_count": 513
+      },
+      "join_presence_deliveries": 25000,
+      "slots_joined": {
+        "count": 500,
+        "bytes": 309790
+      },
+      "message_seconds": 9.585,
+      "room_messages_sent": 30,
+      "room_messages_delivered": 1500,
+      "before_kill": {
+        "rss_kib": 41740,
+        "cpu_seconds": 62.6,
+        "fd_count": 512
+      },
+      "slots_before_kill": {
+        "count": 500,
+        "bytes": 514030
+      },
+      "restart_seconds": 7.557,
+      "resumed_resources": 10,
+      "replayed_pending_room_messages": 10,
+      "membership_groupchat_deliveries_after_resume": 10,
+      "after_resume": {
+        "rss_kib": 20896,
+        "cpu_seconds": 7.09,
+        "fd_count": 22
+      },
+      "slots_after_resume": {
+        "count": 500,
+        "bytes": 671070
+      },
+      "total_seconds": 128.38,
+      "peak_rss_kib": 41852
+    }
+  },
+  "personal_delivery_comparisons": [
+    {
+      "delay_ms_per_sync": 0,
+      "phase": "settled",
+      "samples_per_binary": 3,
+      "body_before_ms": 25.112248,
+      "body_after_ms": 7.871244,
+      "sender_ack_before_ms": 33.407559,
+      "sender_ack_after_ms": 15.079213
+    },
+    {
+      "delay_ms_per_sync": 0,
+      "phase": "avatar_pending",
+      "samples_per_binary": 3,
+      "body_before_ms": 29.714366,
+      "body_after_ms": 20.942607,
+      "sender_ack_before_ms": 32.252144,
+      "sender_ack_after_ms": 21.856674
+    },
+    {
+      "delay_ms_per_sync": 100,
+      "phase": "settled",
+      "samples_per_binary": 3,
+      "body_before_ms": 1232.468024,
+      "body_after_ms": 419.683064,
+      "sender_ack_before_ms": 1641.598264,
+      "sender_ack_after_ms": 644.082891
+    },
+    {
+      "delay_ms_per_sync": 100,
+      "phase": "avatar_pending",
+      "samples_per_binary": 3,
+      "body_before_ms": 2683.292251,
+      "body_after_ms": 1378.231158,
+      "sender_ack_before_ms": 3195.209226,
+      "sender_ack_after_ms": 1581.975429
+    },
+    {
+      "delay_ms_per_sync": 200,
+      "phase": "settled",
+      "samples_per_binary": 1,
+      "body_before_ms": 2836.63993,
+      "body_after_ms": 2042.56345,
+      "sender_ack_before_ms": 3643.297905,
+      "sender_ack_after_ms": 2441.985416
+    },
+    {
+      "delay_ms_per_sync": 200,
+      "phase": "avatar_pending",
+      "samples_per_binary": 1,
+      "body_before_ms": 5782.018326,
+      "body_after_ms": 2676.283903,
+      "sender_ack_before_ms": 6595.924675,
+      "sender_ack_after_ms": 3094.949323
+    }
+  ],
+  "durability_crash": {
+    "status": "pass",
+    "delay_ms_per_sync": 100,
+    "acknowledged_messages": 3,
+    "mam_records_per_account": [
+      3,
+      3
+    ],
+    "resumed_resources": 4,
+    "replayed_personal_deliveries": 9,
+    "offline_checkpoint": {
+      "exported_sessions": 4,
+      "native_archives": 2,
+      "journals_removed": true,
+      "second_invocation_idempotent": true
+    },
+    "pending_before_reauthentication": [
+      2,
+      3,
+      4,
+      3
+    ],
+    "sync_between_publication_and_sigkill": {
+      "total": 32,
+      "by_store_kind_op": {
+        "mam:directory:fsync": 2,
+        "mam:file:fsync": 10,
+        "pep:directory:fsync": 2,
+        "pep:file:fsync": 2,
+        "sm:file:fdatasync": 16
+      }
+    },
+    "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+    "scope": "loopback STARTTLS; real delayed fsync/fdatasync; sender SM acknowledgement then SIGKILL; authoritative queues and MAM checked before reauthentication; at-least-once replay"
+  },
+  "recovery_sync_faults": {
+    "status": "pass",
+    "cases": [
+      {
+        "suffix": ".wal",
+        "status": "pass",
+        "checkpoint_rejected_sync_failure": true,
+        "journals_preserved_on_failure": 4,
+        "serve_rejected_before_listeners": true,
+        "clean_retry_preserved_sessions": 4,
+        "clean_retry_preserved_archives": 2
+      },
+      {
+        "suffix": ".rredo",
+        "status": "pass",
+        "checkpoint_rejected_sync_failure": true,
+        "journals_preserved_on_failure": 2,
+        "serve_rejected_before_listeners": false,
+        "clean_retry_preserved_sessions": 4,
+        "clean_retry_preserved_archives": 2
+      }
+    ],
+    "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a"
+  },
+  "limitations": [
+    "Loopback fixture, not production client or disk qualification",
+    "0ms pair ran sequentially without full verify; 100/200ms final runs had background final verify",
+    "One200ms sample; startup/migration/rotation and background heartbeat affect sync counts",
+    "SM global IO mutex and full snapshots remain; no atomic transaction spanning MAM/SM/network",
+    "Offline storage-checkpoint required before legacy/native writer handoff",
+    "10GiB transfers, real MinIO/AWS, Docker/Gitea/GitHub run were not repeated in this release"
+  ]
+}

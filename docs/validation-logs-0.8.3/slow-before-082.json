@@ -1,0 +1,350 @@
+{
+  "binary_sha256": "130431025c4c7c2f72e28b77a31c83867f857ef8bb56d1f71b10e4b19d7caaf5",
+  "scope": "loopback STARTTLS; four SM resources/two accounts; MAM + pending avatar PEP; fixture-only fsync/fdatasync including data directories; real sync retained",
+  "cases": [
+    {
+      "samples": [
+        {
+          "phase": "settled",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 13.745165,
+            "sent": 16.132819,
+            "received": 18.746494
+          },
+          "sender_sm_handled_ms": 18.699594,
+          "publication_plus_delivery_ms": 18.823329,
+          "sync": {
+            "total": 16,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "sm:directory:fsync": 4,
+              "sm:file:fsync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "settled",
+          "round": 1,
+          "delivery_ms": {
+            "direct": 15.636949,
+            "sent": 18.138746,
+            "received": 20.807559
+          },
+          "sender_sm_handled_ms": 20.705943,
+          "publication_plus_delivery_ms": 20.843968,
+          "sync": {
+            "total": 16,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "sm:directory:fsync": 4,
+              "sm:file:fsync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "settled",
+          "round": 2,
+          "delivery_ms": {
+            "direct": 21.358818,
+            "sent": 24.788203,
+            "received": 26.125405
+          },
+          "sender_sm_handled_ms": 26.090729,
+          "publication_plus_delivery_ms": 26.187115,
+          "sync": {
+            "total": 16,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "sm:directory:fsync": 4,
+              "sm:file:fsync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 32.67965,
+            "sent": 29.361139,
+            "received": 35.870217
+          },
+          "sender_sm_handled_ms": 35.819252,
+          "publication_plus_delivery_ms": 35.991777,
+          "sync": {
+            "total": 28,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:directory:fsync": 8,
+              "sm:file:fsync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 1,
+          "delivery_ms": {
+            "direct": 30.47626,
+            "sent": 28.128456,
+            "received": 32.654735
+          },
+          "sender_sm_handled_ms": 32.540092,
+          "publication_plus_delivery_ms": 32.738534,
+          "sync": {
+            "total": 28,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:directory:fsync": 8,
+              "sm:file:fsync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 2,
+          "delivery_ms": {
+            "direct": 30.492529,
+            "sent": 28.027238,
+            "received": 33.697165
+          },
+          "sender_sm_handled_ms": 33.576139,
+          "publication_plus_delivery_ms": 33.786933,
+          "sync": {
+            "total": 28,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:directory:fsync": 8,
+              "sm:file:fsync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mam_records_per_account": [
+        106,
+        106
+      ],
+      "status": "pass",
+      "delay_ms_per_sync": 0
+    },
+    {
+      "samples": [
+        {
+          "phase": "settled",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 1226.407308,
+            "sent": 1431.404759,
+            "received": 1837.301696
+          },
+          "sender_sm_handled_ms": 1633.73631,
+          "publication_plus_delivery_ms": 1837.391548,
+          "sync": {
+            "total": 18,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "sm:directory:fsync": 5,
+              "sm:file:fsync": 5
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "settled",
+          "round": 1,
+          "delivery_ms": {
+            "direct": 1234.414585,
+            "sent": 1436.607311,
+            "received": 1642.84668
+          },
+          "sender_sm_handled_ms": 1641.598264,
+          "publication_plus_delivery_ms": 1642.913856,
+          "sync": {
+            "total": 16,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "sm:directory:fsync": 4,
+              "sm:file:fsync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "settled",
+          "round": 2,
+          "delivery_ms": {
+            "direct": 1232.468024,
+            "sent": 1441.824206,
+            "received": 1872.009731
+          },
+          "sender_sm_handled_ms": 1652.92941,
+          "publication_plus_delivery_ms": 1872.108448,
+          "sync": {
+            "total": 18,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "sm:directory:fsync": 5,
+              "sm:file:fsync": 5
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 3209.381557,
+            "sent": 3419.876568,
+            "received": 3614.69826
+          },
+          "sender_sm_handled_ms": 3613.565949,
+          "publication_plus_delivery_ms": 3615.484237,
+          "sync": {
+            "total": 28,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:directory:fsync": 8,
+              "sm:file:fsync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 1,
+          "delivery_ms": {
+            "direct": 2665.684412,
+            "sent": 2461.378505,
+            "received": 2870.784696
+          },
+          "sender_sm_handled_ms": 2870.455915,
+          "publication_plus_delivery_ms": 2871.000834,
+          "sync": {
+            "total": 28,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:directory:fsync": 8,
+              "sm:file:fsync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 2,
+          "delivery_ms": {
+            "direct": 2683.292251,
+            "sent": 2475.225974,
+            "received": 3636.635597
+          },
+          "sender_sm_handled_ms": 3195.209226,
+          "publication_plus_delivery_ms": 3640.372412,
+          "sync": {
+            "total": 30,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:directory:fsync": 9,
+              "sm:file:fsync": 9
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mam_records_per_account": [
+        106,
+        106
+      ],
+      "status": "pass",
+      "delay_ms_per_sync": 100
+    }
+  ]
+}

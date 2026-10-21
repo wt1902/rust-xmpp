@@ -353,7 +353,7 @@ fn purge_account_exact_files_preserves_others_and_extras() {
     let root = t.path();
     for store in ["accounts", "roster", "pep_aabbcc", "custom_store"] {
         for user in ["alice", "bob"] {
-            for ext in ["dat", "list", "lidx", "rappend"] {
+            for ext in ["dat", "list", "lidx", "rappend", "rredo"] {
                 let p = storage::path(root, "example.test", Some(user), store).with_extension(ext);
                 std::fs::create_dir_all(p.parent().unwrap()).unwrap();
                 std::fs::write(&p, b"fixture").unwrap();
@@ -367,7 +367,7 @@ fn purge_account_exact_files_preserves_others_and_extras() {
     std::fs::write(&hostwide, b"keep").unwrap();
     a::remove_account(root, "example.test", "alice").unwrap();
     for store in ["accounts", "roster", "pep_aabbcc", "custom_store"] {
-        for ext in ["dat", "list", "lidx", "rappend"] {
+        for ext in ["dat", "list", "lidx", "rappend", "rredo"] {
             assert!(
                 !storage::path(root, "example.test", Some("alice"), store)
                     .with_extension(ext)

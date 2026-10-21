@@ -1,0 +1,74 @@
+{
+  "binary_sha256": "130431025c4c7c2f72e28b77a31c83867f857ef8bb56d1f71b10e4b19d7caaf5",
+  "scope": "loopback STARTTLS; four SM resources/two accounts; MAM + pending avatar PEP; fixture-only fsync/fdatasync including data directories; real sync retained",
+  "cases": [
+    {
+      "samples": [
+        {
+          "phase": "settled",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 2836.63993,
+            "sent": 3238.840305,
+            "received": 3643.707041
+          },
+          "sender_sm_handled_ms": 3643.297905,
+          "publication_plus_delivery_ms": 3643.772507,
+          "sync": {
+            "total": 24,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "sm:directory:fsync": 8,
+              "sm:file:fsync": 8
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 5782.018326,
+            "sent": 5384.85421,
+            "received": 6596.874338
+          },
+          "sender_sm_handled_ms": 6595.924675,
+          "publication_plus_delivery_ms": 6597.492339,
+          "sync": {
+            "total": 30,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 4,
+              "mam:file:fsync": 4,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:directory:fsync": 9,
+              "sm:file:fsync": 9
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mam_records_per_account": [
+        102,
+        102
+      ],
+      "status": "pass",
+      "delay_ms_per_sync": 200,
+      "server_message_processing_slow_ms": [
+        3245,
+        3235
+      ]
+    }
+  ]
+}

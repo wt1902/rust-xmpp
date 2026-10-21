@@ -5,6 +5,7 @@ Usage: python3 tests/sm_restart_network.py BINARY
 Pending server stanzas are at-least-once: a received but unacknowledged stanza
 must replay. This test does not assert exactly-once client stanza processing.
 """
+import hashlib
 import json
 from pathlib import Path
 import signal
@@ -21,6 +22,36 @@ from muc_restart_network import start, stop, join, iq, occupant
 
 SM = 'urn:xmpp:sm:3'
 ROOM = 'durable@rooms.localhost'
+
+
+def durable_slot(root, token):
+    """Read the authoritative checksummed WAL, never a potentially stale export."""
+    paths = list((root/'data').rglob(token + '.wal'))
+    assert len(paths) == 1, ('missing or duplicate durable SM journal', paths)
+    data = paths[0].read_bytes()
+    assert data[:8] == b'XMPPSM01', 'invalid durable SM journal header'
+    offset, frames, record = 8, 0, None
+    while offset < len(data):
+        # An abrupt kill can leave an incomplete final append. Recovery uses
+        # the preceding complete frame; an incomplete baseline is never valid.
+        if len(data)-offset < 8:
+            break
+        size = int.from_bytes(data[offset:offset+4], 'little')
+        inverse = int.from_bytes(data[offset+4:offset+8], 'little')
+        assert size ^ inverse == 0xffffffff and size <= 8*1024*1024+1024, 'invalid durable SM frame length'
+        end = offset+40+size
+        if end > len(data):
+            break
+        payload = data[offset+40:end]
+        assert hashlib.sha256(payload).digest() == data[offset+8:offset+40], 'invalid durable SM frame checksum'
+        frame = json.loads(payload)
+        assert frame['baseline'] == (frames == 0), 'invalid durable SM baseline sequence'
+        record = frame['snapshot']
+        frames += 1
+        offset = end
+    assert frames and record is not None, 'missing committed live SM snapshot'
+    assert record['resume_id'] == token, 'durable SM token mismatch'
+    return record
 
 
 def enable(client):
@@ -115,7 +146,7 @@ def run(binary):
                 client = Client(port, cert, user, 'secret', resource)
                 clients.append(client)
                 return client
-            def restart(how):
+            def restart(how, before_start=None):
                 nonlocal server
                 if how == 'kill':
                     server.send_signal(signal.SIGKILL)
@@ -125,6 +156,8 @@ def run(binary):
                 for client in clients:
                     client.close()
                 clients.clear()
+                if before_start:
+                    before_start()
                 server = start(binary, config, port, log)
             try:
                 server = start(binary, config, port, log)
@@ -139,7 +172,15 @@ def run(binary):
                 alice.send("<message to='bob@localhost'><body>incoming before crash</body></message>")
                 bob.body('incoming before crash')
                 assert handled(alice) == 3
-                restart('kill')
+                def corrupt_export():
+                    record = durable_slot(root, token)
+                    assert record['handled'] == 3
+                    exports = list((root/'data').rglob(token + '.json'))
+                    assert len(exports) == 1
+                    exports[0].write_text('{torn JSON export')
+                # The fsynced journal must repair a torn readable export and
+                # retain the latest handled counter and pending IQ.
+                restart('kill', corrupt_export)
                 for user, ident, h in [('bob', token, 1), ('alice', 'unknown-token', 1), ('alice', token, 99)]:
                     resume(port, cert, ident, h, clients, user=user, success=False)
                 alice, result = resume(port, cert, token, 1, clients)
@@ -203,9 +244,7 @@ def run(binary):
                 assert handled(alice) == 5
                 # Inspect the committed slot before any Bob authentication.
                 # A history replay on rejoining is not offline SM delivery.
-                slots = list((root/'data').rglob(bob_token + '.json'))
-                assert len(slots) == 1, slots
-                record = json.loads(slots[0].read_text())
+                record = durable_slot(root, bob_token)
                 assert record['jid'] == 'bob@localhost/room', record
                 queued = [ET.fromstring(xml) for xml in record['pending']]
                 assert any(packet.get('from') == ROOM + '/Alice'
@@ -256,7 +295,7 @@ def run(binary):
                 if sys.exc_info()[0] is not None:
                     log.seek(0)
                     print(log.read(), file=sys.stderr)
-    print('PASS: TLS legacy/SASL2 durable SM after SIGKILL/SIGTERM, counters, ack pruning, at-least-once pending replay, owner/token/h rejection, transport/resource conflict, MUC activation/offline fanout, grace expiry and account deletion/recreation revocation')
+    print('PASS: TLS legacy/SASL2 durable SM after SIGKILL/SIGTERM, WAL repair of torn JSON export, counters, ack pruning, at-least-once pending replay, owner/token/h rejection, transport/resource conflict, MUC activation/offline fanout, grace expiry and account deletion/recreation revocation')
 
 
 if __name__ == '__main__':

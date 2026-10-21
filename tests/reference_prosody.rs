@@ -47,6 +47,8 @@ fn real_prosody_storage_and_auth_roundtrip() {
         for (i, id) in ["rust-one", "rust-two"].iter().enumerate() {
             archive::append_new(root,host,Some("alice"),"archive",archive::Entry{id:id.to_string(),when:1767225600.+i as f64,peer:"bob@example.org".into(),xml:"<message xmlns='jabber:client' xml:lang='ru' xmlns:o='urn:oracle' o:flag='yes'><body>Rust body</body></message>".into()}).unwrap();
         }
+        // Transfer write ownership only after durable native checkpoint.
+        archive::checkpoint_all(root).unwrap();
         oracle(root, "roundtrip", hash);
         let v = storage::load(root, host, Some("alice"), "oracle")
             .unwrap()
@@ -97,6 +99,7 @@ fn real_prosody_storage_and_auth_roundtrip() {
         )
         .unwrap();
         assert!(!p.exists());
+        archive::checkpoint_all(root).unwrap();
         oracle(root, "verify-final", hash);
     }
 }

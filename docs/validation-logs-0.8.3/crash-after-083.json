@@ -1,0 +1,35 @@
+{
+  "status": "pass",
+  "delay_ms_per_sync": 100,
+  "acknowledged_messages": 3,
+  "mam_records_per_account": [
+    3,
+    3
+  ],
+  "resumed_resources": 4,
+  "replayed_personal_deliveries": 9,
+  "offline_checkpoint": {
+    "exported_sessions": 4,
+    "native_archives": 2,
+    "journals_removed": true,
+    "second_invocation_idempotent": true
+  },
+  "pending_before_reauthentication": [
+    2,
+    3,
+    4,
+    3
+  ],
+  "sync_between_publication_and_sigkill": {
+    "total": 32,
+    "by_store_kind_op": {
+      "mam:directory:fsync": 2,
+      "mam:file:fsync": 10,
+      "pep:directory:fsync": 2,
+      "pep:file:fsync": 2,
+      "sm:file:fdatasync": 16
+    }
+  },
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback STARTTLS; real delayed fsync/fdatasync; sender SM acknowledgement then SIGKILL; authoritative queues and MAM checked before reauthentication; at-least-once replay"
+}

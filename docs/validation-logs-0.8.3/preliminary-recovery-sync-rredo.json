@@ -1,0 +1,6 @@
+{
+  "status": "fail",
+  "cases": [],
+  "binary_sha256": "a5f5b3a552be44fb8ab8b6525dc228bc2dc97f81aecfbc559e12cc29b3e8c00b",
+  "failure": ".rredo recovery skipped journal sync and falsely reported successful handoff"
+}

@@ -3303,6 +3303,12 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
         ctx.event(Level::Debug, "stanza-received", &[("kind", kind)]);
         let handled_session = session.clone();
         let processing_started = Instant::now();
+        // Fixed, payload-free phase metrics; unvisited phases stay zero for
+        // implicit destinations, blocked messages and MUC handling.
+        let mut message_phases = [Duration::ZERO; 7];
+        let mut personal_message_started = false;
+        let mut target_count = 0;
+        let mut carbon_count = 0;
         async {
         if kind == "iq" {
             let typ = n.attribute("type").unwrap_or("");
@@ -3612,7 +3618,10 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         .unwrap_or(to),
                 );
             let typ = n.attribute("type").unwrap_or("normal");
+            personal_message_started = true;
+            message_phases[0] = processing_started.elapsed();
             if rt.enabled("mam") {
+                let sender_mam_started = Instant::now();
                 xml = crate::mam::strip_owner_stanza_ids(&xml, &rt.domain, &user)?;
                 let now = chrono::Utc::now().timestamp_millis() as f64 / 1000.0;
                 if crate::mam::should_store(n)
@@ -3637,7 +3646,9 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                 } else {
                     sent_xml = xml.clone();
                 }
+                message_phases[1] = sender_mam_started.elapsed();
                 if let Some(u) = &local {
+                    let recipient_mam_started = Instant::now();
                     xml = crate::mam::strip_owner_stanza_ids(&xml, &rt.domain, u)?;
                     if u == &user {
                         xml = sent_xml.clone();
@@ -3658,14 +3669,17 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         )?;
                         xml = stamped;
                     }
+                    message_phases[2] = recipient_mam_started.elapsed();
                 }
             }
+            let delivery_started = Instant::now();
             let remote_delivered = remote && route_delivery(&rt, to, &xml).await.is_ok();
             let targets = if local.is_some() {
                 rt.hub.message_targets_for_type(to, typ)
             } else {
                 vec![]
             };
+            target_count = targets.len();
             let mut delivered = usize::from(remote_delivered);
             let mut target_jids = vec![];
             for target in targets {
@@ -3675,6 +3689,8 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                     target_jids.push(target.jid.clone());
                 }
             }
+            message_phases[3] = delivery_started.elapsed();
+            let carbons_started = Instant::now();
             if rt.enabled("carbons")
                 && matches!(typ, "chat" | "normal")
                 && !n.children().any(|n| {
@@ -3701,10 +3717,14 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                             escape(&s.owner),
                             escape(&s.jid)
                         );
-                        let _ = s.transmit(carbon);
+                        if s.transmit(carbon).is_ok() {
+                            carbon_count += 1;
+                        }
                     }
                 }
             }
+            message_phases[4] = carbons_started.elapsed();
+            let offline_push_started = Instant::now();
             // A push can wake the client immediately. Commit offline delivery
             // before publishing its notification, just as for durable SM output.
             if delivered == 0 && !matches!(typ, "error" | "headline") {
@@ -3727,16 +3747,22 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                     enqueue_push_route(&rt, to, payload);
                 }
             }
+            message_phases[5] = offline_push_started.elapsed();
 
         }
             Ok::<(), anyhow::Error>(())
         }.await?;
+        if !personal_message_started {
+            message_phases[0] = processing_started.elapsed();
+        }
+        let handled_started = Instant::now();
         if let Some(s) = handled_session {
             let mut state = s.lock().unwrap();
             if !state.closed {
                 state.mark_handled()?;
             }
         }
+        message_phases[6] = handled_started.elapsed();
         if kind == "message" && processing_started.elapsed() >= Duration::from_millis(250) {
             let route = n.attribute("to").map_or("implicit", |to| {
                 if is_muc_destination(&rt.config, to) {
@@ -3756,6 +3782,21 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         &processing_started.elapsed().as_millis().to_string(),
                     ),
                     ("route", route),
+                    ("pre_routing_ms", &message_phases[0].as_millis().to_string()),
+                    ("sender_mam_ms", &message_phases[1].as_millis().to_string()),
+                    (
+                        "recipient_mam_ms",
+                        &message_phases[2].as_millis().to_string(),
+                    ),
+                    ("delivery_ms", &message_phases[3].as_millis().to_string()),
+                    ("carbons_ms", &message_phases[4].as_millis().to_string()),
+                    (
+                        "offline_push_ms",
+                        &message_phases[5].as_millis().to_string(),
+                    ),
+                    ("handled_ms", &message_phases[6].as_millis().to_string()),
+                    ("target_count", &target_count.to_string()),
+                    ("carbon_count", &carbon_count.to_string()),
                 ],
             );
         }

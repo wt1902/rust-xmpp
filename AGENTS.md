@@ -28,7 +28,7 @@
 В нём сейчас нет `.git`. Если следующая среда содержит Git checkout, используйте
 его состояние и инструкции, не создавайте второй расходящийся источник истины.
 
-Версия Rust source — **0.8.2**. В0.8.0 добавлены durable MUC/SM, затем CI
+Версия Rust source — **0.8.3**. В0.8.0 добавлены durable MUC/SM, затем CI
 и этот handoff;0.8.1 исправляет задержку сообщений. См. docs/MESSAGE-LATENCY.md.
 Перед передачей исходники упаковываются в ZIP; актуальный архив должен содержать
 этот файл и `.github/workflows/ci.yml`. В среде ChatGPT сохраняйте новый архив
@@ -237,3 +237,64 @@ bind2_archive_latency_network.py, archive_edges.rs, session_routing_isolation.rs
 В передаваемый ZIP включайте AGENTS.md, workflow, vendor reference, исходники,
 документацию и scripts; исключайте target, demo data, bin, .git, __pycache__, pyc
 и секреты. Сохраняйте executable bits shell scripts и проверяйте содержимое ZIP.
+
+## Durable message IO 0.8.3
+
+Новый пользовательский log 0.8.2 содержит три local message-processing-slow
+4792–5549 мс. Таймер начинается внутри server после XML, но старые поля не
+доказывают причину IO. Контролируемый slow-sync fixture воспроизводит задержку
+1:1 в несколько секунд. MAM 4 sync/append и SM 2 sync/checkpoint заменены
+ограниченными checksummed redo journals. Обычная операция теперь требует 1 sync;
+создание, recovery и rotation дороже. Точные результаты — VALIDATION-0.8.3.md
+и DURABLE-MESSAGE-IO.md. Не приписывайте loopback причину production без phase logs.
+
+SM `.wal` авторитетен, `.json` — readable export. Replay выполняется до JSON parse.
+Неполный trailing frame отбрасывается; неполный baseline или полная corruption
+блокируют startup. Durable tombstone предшествует delete. GC сначала делает
+sync каталога с JSON deletions, затем unlink WAL и sync каталога.
+Ordinary commit: append + sync_data, потом JSON export без sync. Ошибка export
+после commit не откатывает память; store блокирует дальнейшие записи до recovery.
+Precommit/sync error также блокирует store. Не возвращайте 2 sync на каждый
+checkpoint и не удаляйте redo без checkpoint. Общий SM mutex пока сохранён.
+Slot limit 8 MiB, total 256 MiB; WAL rotation 16 MiB плюс один slot, aggregate
+512 MiB. Не допускайте роста каждого из тысяч slots без aggregate cap.
+
+Archive `.rredo`: native baseline и bounded anchor, checksummed record frames.
+Rotation после 128 frames/1 MiB плюс одна запись до 16 MiB. Cache ограничен 1024;
+изменение metadata вызывает перепроверку. Accepted records восстанавливаются
+даже при потере dirty native pages. Unjournaled native suffix не доказывает
+external append: truncate до committed end. Legacy `.rappend` ещё восстанавливается.
+Save/retain сначала durably фиксируют old native и удаление redo, затем
+делают atomic replacement. Смена inode при копировании/backup НЕ отменяет redo: journal
+остаётся авторитетным. Любой внешний writer, даже atomic replace, требует handoff. Purge включает rredo.
+Recovery повторно инвалидирует `.lidx`: unlink на hot path отдельно не dirsynced.
+Anchor проверяет только последние 4 KiB baseline, не всю старую историю.
+
+Перед сменой writer/откатом остановите сервер и новым binary выполните
+`rust-xmpp storage-checkpoint CONFIG`. Внешний data-directory lock обязателен.
+`archive::checkpoint_all` и `session_store::checkpoint_exports` — только offline.
+Сначала sync native/current JSON и каталога, потом remove journal и sync каталога.
+Graceful stop сам по себе не означает handoff. Native Prosody не импортирует
+Rust SM sessions. Не редактируйте JSON export для expiry fixtures: используйте
+короткий настоящий timeout или проверяйте journal recovery. Не удаляйте WAL,
+чтобы получить зелёный тест. Native oracle перед Prosody modification явно
+вызывает checkpoint_all(root).
+
+Новые tests: archive_redo.rs, sm_journal.rs, slow_storage_latency_network.py,
+slow_storage_crash_network.py, journal_recovery_sync_network.py, fixtures/slow_sync.c. Interposer действует только
+на изолированный fixture data_path. Обычный режим выполняет настоящий
+fsync/fdatasync; отдельный XMPP_SYNC_FAIL_SUFFIX вводит EIO только для fault test.
+Crash fixture проверяет journals и оба MAM архива до reauth после sender SM ACK
+и SIGKILL. Readable JSON без redo не подтверждает durability. Phase fields —
+server.rs и DURABLE-MESSAGE-IO.md.
+
+В восстановленной среде native prefix теперь `/tmp/xmpp-native/usr/usr`, а не
+старый `/tmp/xmpp-native/usr`. `/tmp/xmpp083-env.sh` содержит env текущего прогона;
+это не portable config. Toolchain переустановлен; tests используют Rust 1.99.1.
+
+Итог 0.8.3: 334 ordinary passed, 11 ignored; 9 native и 1 large-archive ignored
+выполнены отдельно. Все network checks и обе нагрузки 500 TLS прошли.
+Final binary SHA-256: 8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a.
+Подробные samples/границы — docs/VALIDATION-0.8.3.md. Checksum и JSON syntax всех frames
+проверяются при SM replay, но Record создаётся только для последнего
+snapshot. Recovery WAL sync до публикации обязателен; EIO fixture защищает это.

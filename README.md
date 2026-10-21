@@ -1,4 +1,4 @@
-# Rust XMPP 0.8.2
+# Rust XMPP 0.8.3
 
 Сервер на Rust, разрабатываемый для замены **Prosody 13.0 nightly 100,
 cafd74b9c5ea** с предоставленными модулями. Читает существующий Lua-конфиг,
@@ -251,3 +251,10 @@ recovery Rust служит собственный журнал. Перед от�
 Push routing больше не блокирует отправителя/SM ACK; CSI defaults немедленно
 передают bodyless OMEMO и receipts. Bind2/MAM metadata не сканируют всю историю.
 [Причины, тесты и конфигурация](docs/PERSONAL-MESSAGE-LATENCY.md).
+
+## Durable IO личных сообщений в0.8.3
+
+Сокращены последовательные sync MAM/SM через checksummed redo journals,
+добавлены замеры этапов медленной обработки и crash/replay проверки.
+Перед передачей файлов Prosody/откатом выполните offline `storage-checkpoint`.
+[Durability, команда handoff и диагностика](docs/DURABLE-MESSAGE-IO.md).

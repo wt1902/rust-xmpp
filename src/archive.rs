@@ -174,7 +174,103 @@ pub fn scan_store<F: FnMut(Entry) -> Result<()>>(
     let _guard = lock.lock().map_err(|_| anyhow!("archive lock poisoned"))?;
     scan_unlocked(root, host, user, store, visit)
 }
-fn recover_append(p: &Path) -> Result<()> {
+// The native file remains directly readable by Prosody. While this sidecar exists,
+// its complete frames define the committed suffix: do not edit a live native file
+// in place or replace it until checkpoint_all has durably retired the journal.
+const REDO_MAGIC: &[u8; 8] = b"XARRED01";
+const REDO_HEADER: usize = 96;
+const REDO_LIMIT: u64 = 1024 * 1024;
+const REDO_FRAMES: usize = 128;
+#[derive(Clone)]
+struct RedoState {
+    length: u64,
+    bytes: u64,
+    frames: usize,
+}
+#[derive(Clone, PartialEq, Eq)]
+struct FileStamp {
+    len: u64,
+    modified: Option<std::time::SystemTime>,
+    identity: (u64, u64),
+    #[cfg(unix)]
+    changed: (i64, i64),
+}
+fn identity(meta: &std::fs::Metadata) -> (u64, u64) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        (meta.dev(), meta.ino())
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = meta;
+        (0, 0)
+    }
+}
+fn stamp(p: &Path) -> Result<FileStamp> {
+    let m = std::fs::metadata(p)?;
+    Ok(FileStamp {
+        len: m.len(),
+        modified: m.modified().ok(),
+        identity: identity(&m),
+        #[cfg(unix)]
+        changed: {
+            use std::os::unix::fs::MetadataExt;
+            (m.ctime(), m.ctime_nsec())
+        },
+    })
+}
+type RedoCache = std::collections::HashMap<std::path::PathBuf, (FileStamp, FileStamp, RedoState)>;
+static REDO_CACHE: OnceLock<Mutex<RedoCache>> = OnceLock::new();
+fn remember_redo(p: &Path, state: &RedoState) -> Result<()> {
+    let native = stamp(p)?;
+    let journal = stamp(&p.with_extension("rredo"))?;
+    let mut cache = REDO_CACHE
+        .get_or_init(|| Mutex::new(RedoCache::new()))
+        .lock()
+        .map_err(|_| anyhow!("archive redo cache poisoned"))?;
+    if cache.len() >= 1024 {
+        cache.clear();
+    }
+    cache.insert(p.to_path_buf(), (native, journal, state.clone()));
+    Ok(())
+}
+fn digest(data: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(data).into()
+}
+fn baseline_anchor(file: &mut std::fs::File, length: u64) -> Result<[u8; 32]> {
+    let count = length.min(4096);
+    file.seek(SeekFrom::Start(length - count))?;
+    let mut bytes = vec![0; count as usize];
+    file.read_exact(&mut bytes)?;
+    Ok(digest(&bytes))
+}
+/// Native fsync precedes journal replacement. Either old or new header can
+/// survive a crash, and both refer to an already durable native baseline.
+fn checkpoint_redo(p: &Path) -> Result<RedoState> {
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(p)?;
+    file.sync_all()?;
+    let meta = file.metadata()?;
+    let length = meta.len();
+    let (dev, ino) = identity(&meta);
+    let mut header = Vec::with_capacity(REDO_HEADER);
+    header.extend_from_slice(REDO_MAGIC);
+    for n in [length, dev, ino] {
+        header.extend_from_slice(&n.to_le_bytes());
+    }
+    header.extend_from_slice(&baseline_anchor(&mut file, length)?);
+    header.extend_from_slice(&digest(&header));
+    storage::atomic_write(&p.with_extension("rredo"), &header)?;
+    let state = RedoState {
+        length,
+        bytes: REDO_HEADER as u64,
+        frames: 0,
+    };
+    remember_redo(p, &state)?;
+    Ok(state)
+}
+fn recover_legacy_append(p: &Path) -> Result<()> {
     let journal = p.with_extension("rappend");
     match std::fs::read(&journal) {
         Ok(data) => {
@@ -193,6 +289,194 @@ fn recover_append(p: &Path) -> Result<()> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
         Err(e) => return Err(e.into()),
     }
+    Ok(())
+}
+fn recover_redo(p: &Path) -> Result<Option<RedoState>> {
+    recover_legacy_append(p)?;
+    let journal = p.with_extension("rredo");
+    let jm = match stamp(&journal) {
+        Ok(m) => m,
+        Err(e)
+            if e.downcast_ref::<std::io::Error>()
+                .is_some_and(|e| e.kind() == std::io::ErrorKind::NotFound) =>
+        {
+            return Ok(None);
+        }
+        Err(e) => return Err(e),
+    };
+    let nm = stamp(p).ok();
+    if let Some(native) = &nm {
+        let cache = REDO_CACHE
+            .get_or_init(|| Mutex::new(RedoCache::new()))
+            .lock()
+            .map_err(|_| anyhow!("archive redo cache poisoned"))?;
+        if let Some((n, j, state)) = cache.get(p)
+            && n == native
+            && j == &jm
+        {
+            return Ok(Some(state.clone()));
+        }
+    }
+    // One oversized record is allowed, but the journal never grows without bound.
+    anyhow::ensure!(
+        jm.len <= REDO_LIMIT + MAX_RECORD_BYTES as u64 + REDO_HEADER as u64 + 72,
+        "archive redo journal exceeds bound"
+    );
+    let data = std::fs::read(&journal)?;
+    anyhow::ensure!(
+        data.len() >= REDO_HEADER && &data[..8] == REDO_MAGIC,
+        "invalid archive redo header"
+    );
+    anyhow::ensure!(
+        digest(&data[..64]) == data[64..96],
+        "archive redo header checksum mismatch"
+    );
+    let number = |offset: usize| u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
+    let base = number(8);
+    // Inodes change when an archive is copied/restored. The journal remains
+    // authoritative across that change; identity is only a cache stamp.
+    anyhow::ensure!(nm.is_some() || base == 0, "missing archive redo baseline");
+    let mut opts = std::fs::OpenOptions::new();
+    opts.read(true).write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let mut file = opts.open(p)?;
+    anyhow::ensure!(
+        file.metadata()?.len() >= base,
+        "archive shorter than redo baseline"
+    );
+    anyhow::ensure!(
+        baseline_anchor(&mut file, base)? == data[32..64],
+        "archive redo baseline changed in place"
+    );
+    let mut pos = REDO_HEADER;
+    let mut frames = Vec::new();
+    let mut length = base;
+    while pos < data.len() {
+        if data.len() - pos < 72 {
+            break;
+        }
+        anyhow::ensure!(
+            digest(&data[pos..pos + 8]) == data[pos + 8..pos + 40],
+            "archive redo frame length checksum mismatch"
+        );
+        let size = number(pos);
+        anyhow::ensure!(
+            size > 0 && size <= MAX_RECORD_BYTES as u64,
+            "invalid archive redo frame length"
+        );
+        let end = pos + 72 + size as usize;
+        if end > data.len() {
+            break;
+        }
+        let payload = &data[pos + 72..end];
+        anyhow::ensure!(
+            digest(payload) == data[pos + 40..pos + 72],
+            "archive redo frame checksum mismatch"
+        );
+        frames.push((length, payload));
+        anyhow::ensure!(
+            frames.len() <= REDO_FRAMES,
+            "archive redo frame count exceeds bound"
+        );
+        length = length
+            .checked_add(size)
+            .ok_or_else(|| anyhow!("archive redo offset overflow"))?;
+        pos = end;
+    }
+    // Native indexes are rebuildable. A crash may have resurrected an unlink
+    // from the append path; invalidate it again before exposing recovered data.
+    match std::fs::remove_file(p.with_extension("lidx")) {
+        Ok(()) => std::fs::File::open(p.parent().unwrap())?.sync_all()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+        Err(e) => return Err(e.into()),
+    }
+    // A complete frame can survive a process crash in page cache even if its
+    // writer never completed sync. Durably adopt all validated frames before
+    // exposing them or allowing later recovery to truncate the native file.
+    let redo = std::fs::OpenOptions::new().write(true).open(&journal)?;
+    if pos < data.len() {
+        redo.set_len(pos as u64)?;
+    }
+    redo.sync_all()?;
+    // Validate the complete journal before changing native data. Replaying is
+    // idempotent, including after a second crash midway through recovery.
+    let mut changed = file.metadata()?.len() != length;
+    for (offset, payload) in &frames {
+        file.seek(SeekFrom::Start(*offset))?;
+        let mut native = vec![0; payload.len()];
+        let equal = file.read_exact(&mut native).is_ok() && native.as_slice() == *payload;
+        if !equal {
+            file.seek(SeekFrom::Start(*offset))?;
+            file.write_all(payload)?;
+            changed = true;
+        }
+    }
+    if changed {
+        file.set_len(length)?;
+        file.sync_all()?;
+    }
+    let state = RedoState {
+        length,
+        bytes: pos as u64,
+        frames: frames.len(),
+    };
+    if nm.is_none() {
+        return checkpoint_redo(p).map(Some);
+    }
+    remember_redo(p, &state)?;
+    Ok(Some(state))
+}
+fn recover_append(p: &Path) -> Result<()> {
+    recover_redo(p)?;
+    Ok(())
+}
+/// Durable handoff to a native writer. Call after stopping archive users and
+/// before letting Prosody modify `.list` files in place. Abrupt shutdown leaves
+/// redo recovery active; unjournaled native suffixes are then uncommitted.
+pub fn checkpoint_all(root: &Path) -> Result<usize> {
+    with_exclusive_access(|| {
+        let mut pending = vec![root.to_path_buf()];
+        let mut count = 0;
+        while let Some(dir) = pending.pop() {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(entries) => entries,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) => return Err(e.into()),
+            };
+            for entry in entries {
+                let entry = entry?;
+                let kind = entry.file_type()?;
+                if kind.is_dir() {
+                    pending.push(entry.path());
+                } else if kind.is_file() && entry.path().extension().is_some_and(|e| e == "rredo") {
+                    let path = entry.path().with_extension("list");
+                    prepare_rewrite(&path)?;
+                    count += 1;
+                }
+            }
+        }
+        Ok(count)
+    })
+}
+/// Retire redo before an atomic snapshot replacement. The old native snapshot
+/// is synced first, so a crash after unlink and before rename retains every
+/// committed record. After rename there is no old redo to resurrect deletions.
+fn prepare_rewrite(p: &Path) -> Result<()> {
+    if recover_redo(p)?.is_none() {
+        return Ok(());
+    }
+    std::fs::File::open(p)?.sync_all()?;
+    std::fs::remove_file(p.with_extension("rredo"))?;
+    std::fs::File::open(p.parent().unwrap())?.sync_all()?;
+    REDO_CACHE
+        .get_or_init(|| Mutex::new(RedoCache::new()))
+        .lock()
+        .map_err(|_| anyhow!("archive redo cache poisoned"))?
+        .remove(p);
     Ok(())
 }
 fn scan_unlocked<F: FnMut(Entry) -> Result<()>>(
@@ -458,7 +742,7 @@ fn save_unlocked(
         data.push_str(&encode_entry(e)?);
     }
     let p = storage::path(root, host, user, store).with_extension("list");
-    recover_append(&p)?;
+    prepare_rewrite(&p)?;
     match std::fs::remove_file(p.with_extension("lidx")) {
         Ok(()) => (),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
@@ -519,37 +803,57 @@ fn append_unlocked(
     entry: &Entry,
 ) -> Result<()> {
     let data = encode_entry(entry)?;
+    anyhow::ensure!(
+        data.len() <= MAX_RECORD_BYTES,
+        "archive record exceeds 16 MiB"
+    );
     let path = storage::path(root, host, user, store).with_extension("list");
-    let parent = path.parent().unwrap();
-    std::fs::create_dir_all(parent)?;
-    recover_append(&path)?;
+    std::fs::create_dir_all(path.parent().unwrap())?;
+    let state = recover_redo(&path)?;
     let mut opts = std::fs::OpenOptions::new();
-    opts.create(true).append(true);
+    opts.create(true).read(true).write(true).truncate(false);
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
         opts.mode(0o600);
     }
     let mut file = opts.open(&path)?;
-    let length = file.metadata()?.len();
-    let journal = path.with_extension("rappend");
-    storage::atomic_write(&journal, &length.to_le_bytes())?;
+    let mut state = match state {
+        Some(state) => state,
+        None => checkpoint_redo(&path)?,
+    };
+    if state.bytes >= REDO_LIMIT || state.frames >= REDO_FRAMES {
+        state = checkpoint_redo(&path)?;
+    }
     match std::fs::remove_file(path.with_extension("lidx")) {
         Ok(()) => (),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
         Err(e) => return Err(e.into()),
     }
-    let result = (|| -> Result<()> {
-        file.write_all(data.as_bytes())?;
-        file.sync_all()?;
-        std::fs::remove_file(&journal)?;
-        std::fs::File::open(parent)?.sync_all()?;
-        Ok(())
-    })();
-    if result.is_err() {
-        recover_append(&path)?;
-    }
-    result
+    let mut frame = Vec::with_capacity(72 + data.len());
+    frame.extend_from_slice(&(data.len() as u64).to_le_bytes());
+    frame.extend_from_slice(&digest(&(data.len() as u64).to_le_bytes()));
+    frame.extend_from_slice(&digest(data.as_bytes()));
+    frame.extend_from_slice(data.as_bytes());
+    // Invalidate the cache before any write, including error paths. A failed
+    // sync is indeterminate and must be recovered, never blindly rolled back.
+    REDO_CACHE
+        .get_or_init(|| Mutex::new(RedoCache::new()))
+        .lock()
+        .map_err(|_| anyhow!("archive redo cache poisoned"))?
+        .remove(&path);
+    file.seek(SeekFrom::Start(state.length))?;
+    file.write_all(data.as_bytes())?;
+    let mut journal = std::fs::OpenOptions::new()
+        .append(true)
+        .open(path.with_extension("rredo"))?;
+    journal.write_all(&frame)?;
+    journal.sync_all()?;
+    state.length += data.len() as u64;
+    state.bytes += frame.len() as u64;
+    state.frames += 1;
+    remember_redo(&path, &state)?;
+    Ok(())
 }
 /// Owner is localpart, peer is bare JID. Caller enforces archive preferences.
 pub fn archive_message(
@@ -614,6 +918,7 @@ fn retain_unlocked<F: FnMut(&Entry) -> bool>(
     mut retain: F,
 ) -> Result<usize> {
     let path = storage::path(root, host, user, store).with_extension("list");
+    recover_append(&path)?;
     if !path.exists() {
         return Ok(0);
     }
@@ -641,6 +946,7 @@ fn retain_unlocked<F: FnMut(&Entry) -> bool>(
             return Ok(0);
         }
         file.sync_all()?;
+        prepare_rewrite(&path)?;
         match std::fs::remove_file(path.with_extension("lidx")) {
             Ok(()) => (),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
@@ -652,4 +958,58 @@ fn retain_unlocked<F: FnMut(&Entry) -> bool>(
     })();
     let _ = std::fs::remove_file(&temp);
     result
+}
+
+#[cfg(test)]
+mod redo_rewrite_tests {
+    use super::*;
+
+    fn fixture() -> (tempfile::TempDir, std::path::PathBuf) {
+        let root = tempfile::tempdir().unwrap();
+        append_new(
+            root.path(),
+            "example.org",
+            Some("alice"),
+            "archive",
+            Entry {
+                id: "committed-before-rewrite".into(),
+                when: 42.,
+                peer: String::new(),
+                xml: "<message><body>durable</body></message>".into(),
+            },
+        )
+        .unwrap();
+        let path = storage::path(root.path(), "example.org", Some("alice"), "archive")
+            .with_extension("list");
+        (root, path)
+    }
+
+    #[test]
+    fn crash_gap_after_redo_retirement_before_native_rename_keeps_old_snapshot() {
+        let (root, path) = fixture();
+        let expected = std::fs::read(&path).unwrap();
+        prepare_rewrite(&path).unwrap();
+        // Crash boundary: redo unlink and directory sync completed, replacement
+        // has not happened. Restart must retain the complete durable old list.
+        assert!(!path.with_extension("rredo").exists());
+        assert_eq!(std::fs::read(&path).unwrap(), expected);
+        let rows = load(root.path(), "example.org", "alice").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].id, "committed-before-rewrite");
+    }
+
+    #[test]
+    fn crash_gap_after_native_rename_has_no_old_redo_to_resurrect_deletions() {
+        let (root, path) = fixture();
+        prepare_rewrite(&path).unwrap();
+        storage::atomic_write(&path, b"").unwrap();
+        // Crash boundary: the atomic replacement committed. Recovery sees the
+        // new snapshot directly and cannot replay the removed old record.
+        assert!(!path.with_extension("rredo").exists());
+        assert!(
+            load(root.path(), "example.org", "alice")
+                .unwrap()
+                .is_empty()
+        );
+    }
 }

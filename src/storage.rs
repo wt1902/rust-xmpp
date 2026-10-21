@@ -427,7 +427,7 @@ pub fn purge_user(root: &Path, host: &str, user: &str) -> Result<()> {
         if !ty.is_dir() {
             continue;
         }
-        for extension in ["dat", "list", "lidx", "rappend"] {
+        for extension in ["dat", "list", "lidx", "rappend", "rredo"] {
             let p = entry.path().join(format!("{user}.{extension}"));
             match fs::symlink_metadata(&p) {
                 Ok(m) => {

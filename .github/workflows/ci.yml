@@ -85,6 +85,9 @@ jobs:
             /tmp/push-latency.json
             /tmp/push-offline-latency.json
             /tmp/bind2-archive-latency.json
+            /tmp/slow-storage-latency.json
+            /tmp/slow-storage-crash.json
+            /tmp/journal-recovery-sync.json
           if-no-files-found: warn
           retention-days: 14
 

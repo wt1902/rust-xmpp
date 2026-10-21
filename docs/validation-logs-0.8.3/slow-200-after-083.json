@@ -1,0 +1,99 @@
+{
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback STARTTLS; four SM resources/two accounts; MAM + pending avatar metadata PEP; fixture-only fsync/fdatasync including data directories; real sync retained; operation windows include background SM heartbeat",
+  "cases": [
+    {
+      "samples": [
+        {
+          "phase": "settled",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 2042.56345,
+            "sent": 2239.283932,
+            "received": 2442.564925
+          },
+          "sender_sm_handled_ms": 2441.985416,
+          "publication_plus_delivery_ms": 2442.641984,
+          "sync": {
+            "total": 12,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 2,
+              "mam:file:fsync": 6,
+              "sm:file:fdatasync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 2676.283903,
+            "sent": 2476.200907,
+            "received": 3095.924978
+          },
+          "sender_sm_handled_ms": 3094.949323,
+          "publication_plus_delivery_ms": 3096.115223,
+          "sync": {
+            "total": 15,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:file:fdatasync": 9
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mam_records_per_account": [
+        102,
+        102
+      ],
+      "status": "pass",
+      "delay_ms_per_sync": 200,
+      "server_message_processing_slow_events": [
+        {
+          "duration_ms": 2440,
+          "route": "local",
+          "pre_routing_ms": 0,
+          "sender_mam_ms": 813,
+          "recipient_mam_ms": 816,
+          "delivery_ms": 202,
+          "carbons_ms": 404,
+          "offline_push_ms": 0,
+          "handled_ms": 202,
+          "target_count": 1,
+          "carbon_count": 2
+        },
+        {
+          "duration_ms": 1259,
+          "route": "local",
+          "pre_routing_ms": 0,
+          "sender_mam_ms": 204,
+          "recipient_mam_ms": 208,
+          "delivery_ms": 223,
+          "carbons_ms": 410,
+          "offline_push_ms": 0,
+          "handled_ms": 211,
+          "target_count": 1,
+          "carbon_count": 2
+        }
+      ],
+      "server_message_processing_slow_ms": [
+        2440,
+        1259
+      ]
+    }
+  ]
+}

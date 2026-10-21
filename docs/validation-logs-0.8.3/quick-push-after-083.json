@@ -1,0 +1,25 @@
+{
+  "status": "pass",
+  "recipient_state": "hibernating",
+  "durable_pending_at_gateway_stream": {
+    "push-first": true,
+    "push-second": true
+  },
+  "observation_seconds": 2,
+  "elapsed_seconds": 2.013597706999917,
+  "gateway_post_tls_stream_observed": true,
+  "gateway_post_tls_stream_at_bound": true,
+  "blocked_stage": "post-tls-features",
+  "durable_pending": {
+    "push-first": true,
+    "push-second": true
+  },
+  "sender_sm_ack_h": [
+    4
+  ],
+  "sender_inputs": 4,
+  "sender_handled_before": 2,
+  "binary_version": "rust-xmpp 0.8.3 \u2014 experimental XMPP runtime",
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback TLS fixture; stalled external XMPP push service; no APNs/FCM"
+}

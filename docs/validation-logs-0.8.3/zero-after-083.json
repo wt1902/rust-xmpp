@@ -1,0 +1,169 @@
+{
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback STARTTLS; four SM resources/two accounts; MAM + pending avatar metadata PEP; fixture-only fsync/fdatasync including data directories; real sync retained; operation windows include background SM heartbeat",
+  "cases": [
+    {
+      "samples": [
+        {
+          "phase": "settled",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 18.615095,
+            "sent": 19.940848,
+            "received": 26.953392
+          },
+          "sender_sm_handled_ms": 26.88493,
+          "publication_plus_delivery_ms": 27.065981,
+          "sync": {
+            "total": 12,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 2,
+              "mam:file:fsync": 6,
+              "sm:file:fdatasync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "settled",
+          "round": 1,
+          "delivery_ms": {
+            "direct": 6.003256,
+            "sent": 7.461811,
+            "received": 10.135311
+          },
+          "sender_sm_handled_ms": 9.993133,
+          "publication_plus_delivery_ms": 10.173245,
+          "sync": {
+            "total": 6,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "sm:file:fdatasync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "settled",
+          "round": 2,
+          "delivery_ms": {
+            "direct": 7.871244,
+            "sent": 13.331419,
+            "received": 15.325955
+          },
+          "sender_sm_handled_ms": 15.079213,
+          "publication_plus_delivery_ms": 15.363148,
+          "sync": {
+            "total": 6,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "sm:file:fdatasync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 38.754553,
+            "sent": 25.865646,
+            "received": 40.65703
+          },
+          "sender_sm_handled_ms": 40.40549,
+          "publication_plus_delivery_ms": 40.769686,
+          "sync": {
+            "total": 14,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:file:fdatasync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 1,
+          "delivery_ms": {
+            "direct": 20.942607,
+            "sent": 20.204899,
+            "received": 22.05411
+          },
+          "sender_sm_handled_ms": 21.856674,
+          "publication_plus_delivery_ms": 23.679041,
+          "sync": {
+            "total": 14,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:file:fdatasync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 2,
+          "delivery_ms": {
+            "direct": 17.980156,
+            "sent": 18.759152,
+            "received": 21.369599
+          },
+          "sender_sm_handled_ms": 21.332607,
+          "publication_plus_delivery_ms": 21.518131,
+          "sync": {
+            "total": 14,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:file:fdatasync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mam_records_per_account": [
+        106,
+        106
+      ],
+      "status": "pass",
+      "delay_ms_per_sync": 0,
+      "server_message_processing_slow_events": [],
+      "server_message_processing_slow_ms": []
+    }
+  ]
+}

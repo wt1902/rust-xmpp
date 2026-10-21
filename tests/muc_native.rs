@@ -25,6 +25,8 @@ fn actual_prosody_muc_mam_reads_rust_and_writes_native_archive() {
         "<message type='groupchat' to='room@rooms.example.org' id='rust-message'><body>Rust archived body</body></message>",
     );
     drop(muc);
+    // Transfer archive write ownership before native Prosody appends in place.
+    assert_eq!(rust_xmpp::archive::checkpoint_all(root.path()).unwrap(), 1);
     let bootstrap = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/scripts/prosody_compat/oracle.lua"

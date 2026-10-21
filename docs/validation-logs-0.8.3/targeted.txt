@@ -1,0 +1,111 @@
+   Compiling rust-xmpp v0.8.3 (/workspace/scratch/362577cdf2e0/recovered/rust-xmpp)
+    Finished `test` profile [unoptimized] target(s) in 29.67s
+     Running unittests src/lib.rs (target/debug/deps/rust_xmpp-792bf902c86621ec)
+
+running 50 tests
+test csi::checkpoint_tests::failed_queue_checkpoints_restore_append_and_drain_without_copying_queue ... ok
+test federation::tests::external_must_be_in_the_advertised_mechanisms ... ok
+test federation::tests::starttls_must_be_an_immediate_stream_feature ... ok
+test csi::checkpoint_tests::only_queue_changes_require_a_checkpoint ... ok
+test federation::tests::federation_domains_are_dns_names_and_case_insensitive ... ok
+test federation::tests::stream_restarts_compare_canonical_domains ... ok
+test http_config::tests::literal_pchars_and_percent_encoding_are_supported ... ok
+test http_config::tests::invalid_paths_types_urls_and_conflicts_are_errors ... ok
+test http_config::tests::external_prefix_and_standard_port ... ok
+test http_config::tests::routes_hosts_and_default_without_overriding_known_hosts ... ok
+test http_proxy::tests::config_validation_and_network_boundaries ... ok
+test http_proxy::tests::empty_native_lua_table_disables_proxy_trust ... ok
+test http_config::tests::mounts_inherit_per_app_and_expand_virtual_host ... ok
+test http_proxy::tests::forwarded_tls_termination_cannot_upgrade_a_plaintext_chain_hop ... ok
+test http_proxy::tests::malformed_forwarded_and_unknown_identifiers_are_ignored ... ok
+test http_proxy::tests::untrusted_socket_ignores_spoofed_headers ... ok
+test http_proxy::tests::legacy_chain_uses_rightmost_untrusted_and_tls_is_preserved ... ok
+test http_proxy::tests::forwarded_mode_stops_at_first_untrusted_hop ... ok
+test http_transport::tests::bosh_processing_capacity_is_bounded ... ok
+test http_transport::tests::configured_mount_host_origin_and_secure_dispatch ... ok
+test http_transport::tests::independent_framing ... ok
+test http_transport::tests::websocket_preserves_inherited_namespaces_and_spaced_declarations ... ok
+test logging::tests::console_aliases_share_one_sink_with_combined_levels ... ok
+test sasl::tests::reject_malformed_and_downgrade ... ok
+test archive::redo_rewrite_tests::crash_gap_after_redo_retirement_before_native_rename_keeps_old_snapshot ... ok
+test archive::redo_rewrite_tests::crash_gap_after_native_rename_has_no_old_redo_to_resurrect_deletions ... ok
+test sasl::tests::rfc5802_sha1_vector ... ok
+test server::authorization_tests::http_interfaces_follow_secure_override_wildcards_and_global_fallback ... ok
+test server::authorization_tests::pep_diagnostics_count_only_first_item_devices_without_logging_ids ... ok
+test server::authorization_tests::pep_diagnostics_exclude_payloads_and_identifiers ... ok
+test http_service::tests::upload_claim_refreshes_completion_state_after_an_earlier_snapshot ... ok
+test sessions::push_timeout_tests::first_important_push_shortens_extended_hibernation_once ... ok
+test sessions::tests::acknowledgement_wraps ... ok
+test sessions::tests::graceful_disconnect_is_not_resumable ... ok
+test sessions::tests::resume_replays_only_unacked_and_checks_owner ... ok
+test sessions::tests::traffic_before_sm_enable_is_not_counted ... ok
+test upload_migration::tests::local_spool_checks_size_and_hash_and_preserves_source ... ok
+test sasl::tests::sha256_independent_python_vector ... ok
+test wire::tests::arbitrary_prefix_and_inherited_namespaces ... ok
+test wire::tests::cdata_and_comments_frame_without_counting_brackets ... ok
+test wire::tests::declarations_rejected ... ok
+test wire::tests::fragmented_and_pipelined ... ok
+test wire::tests::invalid_namespace_and_declarations_rejected ... ok
+test upload_migration::tests::pending_and_corrupt_journals_block_startup ... ok
+test http_service::tests::upload_internal_mount_is_independent_of_advertised_proxy_prefix ... ok
+test http_service::tests::abandoned_slots_release_quota_without_pruning_existing_or_active_files ... ok
+test sasl::tests::plus_channel_binding_and_ssdp_are_authenticated ... ok
+test server::authorization_tests::upload_requires_registered_local_account_or_explicit_remote_access ... ok
+test sasl::tests::wrong_proof_nonce_binding_and_duplicates ... ok
+test admin::tests::real_admin_xml_protocol_over_duplex ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s
+
+     Running tests/archive_edges.rs (target/debug/deps/archive_edges-da556b3567110d0b)
+
+running 6 tests
+test missing_empty_whitespace_and_single_record ... ok
+test endpoint_read_recovers_partial_append_before_seeking ... ok
+test multiline_endpoints_match_native_scanner_with_blank_lines ... ok
+test oversized_prefix_and_malformed_endpoints_fail ... ok
+test metadata_skips_large_malformed_middle_without_creating_cache ... ok
+test tail_padding_respects_record_bound ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s
+
+     Running tests/archive_redo.rs (target/debug/deps/archive_redo-d041d27370ba29bd)
+
+running 13 tests
+test atomic_native_replace_without_handoff_cannot_discard_committed_frames ... ok
+test explicit_native_atomic_handoff_and_missing_baseline_fail_closed ... ok
+
+running 1 test
+test durable_handoff_allows_native_in_place_append_and_next_rust_append ... ok
+test legacy_rollback_marker_is_migrated_before_redo_append ... ok
+test committed_redo_recovers_missing_and_partial_native_without_duplicates ... ok
+test redo_process_child ... ok
+test killed_writer_retains_accepted_records_after_native_data_loss ... ok
+test native_baseline_in_place_edits_are_rejected ... ok
+test complete_checksum_corruption_fails_without_modifying_native_or_journal ... ok
+test copied_archive_replays_committed_redo_despite_new_native_inode ... ok
+test incomplete_final_frame_and_uncommitted_native_suffix_are_discarded ... ok
+test byte_limit_rotates_before_frame_count_limit ... ok
+test bounded_rotation_recovers_suffix_and_rewrites_never_resurrect_deleted_records ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
+
+     Running tests/sm_journal.rs (target/debug/deps/sm_journal-79fad6209c2b84bb)
+
+running 14 tests
+test offline_checkpoint_refuses_live_store_and_preserves_redo ... ok
+test complete_corrupt_frame_fails_closed_even_with_valid_export ... ok
+test journal_symlink_is_rejected_without_following_target ... ok
+test export_failure_after_commit_advances_memory_and_fences_later_writes ... ok
+test durable_tombstone_overrides_resurrected_stale_json ... ok
+test offline_checkpoint_durably_applies_expiration_and_tombstones ... ok
+test legacy_json_migrates_and_baseline_survives_partial_first_append ... ok
+test offline_checkpoint_repairs_exports_removes_redo_and_allows_legacy_restart ... ok
+test partial_tail_is_discarded_and_subsequent_commits_survive_restart ... ok
+test redo_repairs_missing_or_torn_export_before_json_validation ... ok
+test superseded_frames_still_require_valid_checksums_json_and_baseline_flags ... ok
+test incomplete_baseline_or_magic_never_falls_back_to_json ... ok
+test retired_journals_are_collected_in_bounded_batches ... ok
+test rotation_preserves_latest_snapshot_and_bounds_redo_size ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.97s
+

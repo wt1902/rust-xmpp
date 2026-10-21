@@ -1,0 +1,2 @@
+    Checking rust-xmpp v0.8.3 (/workspace/scratch/362577cdf2e0/recovered/rust-xmpp)
+    Finished `dev` profile [unoptimized] target(s) in 14.04s

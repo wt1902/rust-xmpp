@@ -1,0 +1,24 @@
+{
+  "status": "pass",
+  "cases": [
+    {
+      "suffix": ".wal",
+      "status": "pass",
+      "checkpoint_rejected_sync_failure": true,
+      "journals_preserved_on_failure": 4,
+      "serve_rejected_before_listeners": true,
+      "clean_retry_preserved_sessions": 4,
+      "clean_retry_preserved_archives": 2
+    },
+    {
+      "suffix": ".rredo",
+      "status": "pass",
+      "checkpoint_rejected_sync_failure": true,
+      "journals_preserved_on_failure": 2,
+      "serve_rejected_before_listeners": false,
+      "clean_retry_preserved_sessions": 4,
+      "clean_retry_preserved_archives": 2
+    }
+  ],
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a"
+}

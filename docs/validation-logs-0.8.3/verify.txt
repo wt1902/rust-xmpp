@@ -1,0 +1,2036 @@
+   Compiling rust-xmpp v0.8.3 (/workspace/scratch/362577cdf2e0/recovered/rust-xmpp)
+    Finished `test` profile [unoptimized] target(s) in 46.59s
+     Running unittests src/lib.rs (target/debug/deps/rust_xmpp-792bf902c86621ec)
+
+running 50 tests
+test csi::checkpoint_tests::only_queue_changes_require_a_checkpoint ... ok
+test csi::checkpoint_tests::failed_queue_checkpoints_restore_append_and_drain_without_copying_queue ... ok
+test federation::tests::federation_domains_are_dns_names_and_case_insensitive ... ok
+test federation::tests::external_must_be_in_the_advertised_mechanisms ... ok
+test federation::tests::starttls_must_be_an_immediate_stream_feature ... ok
+test http_config::tests::literal_pchars_and_percent_encoding_are_supported ... ok
+test http_config::tests::mounts_inherit_per_app_and_expand_virtual_host ... ok
+test http_config::tests::routes_hosts_and_default_without_overriding_known_hosts ... ok
+test http_config::tests::external_prefix_and_standard_port ... ok
+test http_config::tests::invalid_paths_types_urls_and_conflicts_are_errors ... ok
+test http_proxy::tests::empty_native_lua_table_disables_proxy_trust ... ok
+test http_proxy::tests::forwarded_mode_stops_at_first_untrusted_hop ... ok
+test federation::tests::stream_restarts_compare_canonical_domains ... ok
+test http_proxy::tests::config_validation_and_network_boundaries ... ok
+test http_proxy::tests::forwarded_tls_termination_cannot_upgrade_a_plaintext_chain_hop ... ok
+test http_proxy::tests::untrusted_socket_ignores_spoofed_headers ... ok
+test http_proxy::tests::malformed_forwarded_and_unknown_identifiers_are_ignored ... ok
+test http_proxy::tests::legacy_chain_uses_rightmost_untrusted_and_tls_is_preserved ... ok
+test http_transport::tests::bosh_processing_capacity_is_bounded ... ok
+test http_transport::tests::independent_framing ... ok
+test http_transport::tests::websocket_preserves_inherited_namespaces_and_spaced_declarations ... ok
+test http_transport::tests::configured_mount_host_origin_and_secure_dispatch ... ok
+test logging::tests::console_aliases_share_one_sink_with_combined_levels ... ok
+test sasl::tests::reject_malformed_and_downgrade ... ok
+test archive::redo_rewrite_tests::crash_gap_after_redo_retirement_before_native_rename_keeps_old_snapshot ... ok
+test archive::redo_rewrite_tests::crash_gap_after_native_rename_has_no_old_redo_to_resurrect_deletions ... ok
+test sasl::tests::rfc5802_sha1_vector ... ok
+test server::authorization_tests::http_interfaces_follow_secure_override_wildcards_and_global_fallback ... ok
+test server::authorization_tests::pep_diagnostics_count_only_first_item_devices_without_logging_ids ... ok
+test server::authorization_tests::pep_diagnostics_exclude_payloads_and_identifiers ... ok
+test http_service::tests::upload_claim_refreshes_completion_state_after_an_earlier_snapshot ... ok
+test sessions::push_timeout_tests::first_important_push_shortens_extended_hibernation_once ... ok
+test sessions::tests::acknowledgement_wraps ... ok
+test sessions::tests::graceful_disconnect_is_not_resumable ... ok
+test sessions::tests::resume_replays_only_unacked_and_checks_owner ... ok
+test sessions::tests::traffic_before_sm_enable_is_not_counted ... ok
+test upload_migration::tests::local_spool_checks_size_and_hash_and_preserves_source ... ok
+test sasl::tests::sha256_independent_python_vector ... ok
+test wire::tests::arbitrary_prefix_and_inherited_namespaces ... ok
+test wire::tests::cdata_and_comments_frame_without_counting_brackets ... ok
+test wire::tests::declarations_rejected ... ok
+test wire::tests::fragmented_and_pipelined ... ok
+test wire::tests::invalid_namespace_and_declarations_rejected ... ok
+test upload_migration::tests::pending_and_corrupt_journals_block_startup ... ok
+test http_service::tests::upload_internal_mount_is_independent_of_advertised_proxy_prefix ... ok
+test sasl::tests::plus_channel_binding_and_ssdp_are_authenticated ... ok
+test http_service::tests::abandoned_slots_release_quota_without_pruning_existing_or_active_files ... ok
+test server::authorization_tests::upload_requires_registered_local_account_or_explicit_remote_access ... ok
+test sasl::tests::wrong_proof_nonce_binding_and_duplicates ... ok
+test admin::tests::real_admin_xml_protocol_over_duplex ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+
+     Running unittests src/main.rs (target/debug/deps/rust_xmpp-148ea986d35b559e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/admin_socket.rs (target/debug/deps/admin_socket-6fb0d08c69de5529)
+
+running 1 test
+test prosody_wire_commands_password_prompt_and_safe_errors ... ignored, requires AF_UNIX socket permission; run on target host with --ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/archive_edges.rs (target/debug/deps/archive_edges-da556b3567110d0b)
+
+running 6 tests
+test missing_empty_whitespace_and_single_record ... ok
+test endpoint_read_recovers_partial_append_before_seeking ... ok
+test multiline_endpoints_match_native_scanner_with_blank_lines ... ok
+test metadata_skips_large_malformed_middle_without_creating_cache ... ok
+test oversized_prefix_and_malformed_endpoints_fail ... ok
+test tail_padding_respects_record_bound ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.76s
+
+     Running tests/archive_mam.rs (target/debug/deps/archive_mam-1243a5e0f6034fe2)
+
+running 14 tests
+test archive_larger_than_128mib_streams ... ignored, large-file scalability regression; run explicitly
+test mam_preferences_persist ... ok
+test corrupt_archive_reports_server_error_and_namespace_stripping_is_precise ... ok
+test legacy_records_binary_cache_and_roundtrip ... ok
+test equal_cursors_and_normalized_query_jids ... ok
+test append_is_incremental_and_recovers_torn_tail ... ok
+test smart_enable_and_message_selection ... ok
+test mam_paging_filters_and_forbidden ... ok
+test real_archive_sid_and_sender_privacy ... ok
+test muc_archive_filters_stanza_kind_instead_of_sender_jid ... ok
+test archive_roundtrip_preserves_default_namespace_resets ... ok
+test zero_page_dates_and_invalid_forms ... ok
+test extended_ids_ranges_flip_and_metadata ... ok
+test namespaces_expiry_and_concurrent_append ... ok
+
+test result: ok. 13 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/archive_redo.rs (target/debug/deps/archive_redo-d041d27370ba29bd)
+
+running 13 tests
+test atomic_native_replace_without_handoff_cannot_discard_committed_frames ... ok
+test durable_handoff_allows_native_in_place_append_and_next_rust_append ... ok
+
+running 1 test
+test explicit_native_atomic_handoff_and_missing_baseline_fail_closed ... ok
+test legacy_rollback_marker_is_migrated_before_redo_append ... ok
+test committed_redo_recovers_missing_and_partial_native_without_duplicates ... ok
+test redo_process_child ... ok
+test killed_writer_retains_accepted_records_after_native_data_loss ... ok
+test native_baseline_in_place_edits_are_rejected ... ok
+test complete_checksum_corruption_fails_without_modifying_native_or_journal ... ok
+test copied_archive_replays_committed_redo_despite_new_native_inode ... ok
+test incomplete_final_frame_and_uncommitted_native_suffix_are_discarded ... ok
+test byte_limit_rotates_before_frame_count_limit ... ok
+test bounded_rotation_recovers_suffix_and_rewrites_never_resurrect_deleted_records ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+
+     Running tests/auth.rs (target/debug/deps/auth-344d4fad9bb83f1a)
+
+running 3 tests
+test traversal_and_malicious_account_records_rejected ... ok
+test authentication_prepares_names_without_relaxing_account_management ... ok
+test create_and_read_hashed_accounts ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.20s
+
+     Running tests/cli.rs (target/debug/deps/cli-4a90aae5cf4226d3)
+
+running 2 tests
+test server_cannot_be_mistaken_for_running_service ... ok
+test conversion_preserves_source_and_refuses_overwrite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/config.rs (target/debug/deps/config-195edf31674c21a8)
+
+running 12 tests
+test include_cycles_rejected ... ok
+test storage_paths_encode_like_prosody ... ok
+test declarations_and_overrides ... ok
+test include_has_own_global_scope_and_parent_scope_is_restored ... ok
+test component_can_explicitly_enable_global_modules ... ok
+test supplied_configuration_scopes_arithmetic_and_modules ... ok
+test tables_cannot_recurse_forever ... ok
+test runtime_capabilities_are_unavailable ... ok
+test all_formats_round_trip_actual_config ... ok
+test supplied_config_matches_original_prosody_loader ... ok
+test malformed_values_rejected ... ok
+test loops_are_bounded ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/csi.rs (target/debug/deps/csi-df937ae1f8f22320)
+
+running 2 tests
+test bounded_queue_flush_delay_activity_and_grace ... ok
+test native_importance_rules ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/csi_native.rs (target/debug/deps/csi_native-0a12987691d5009c)
+
+running 1 test
+test native_prosody_csi_importance_matches ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/data_lock.rs (target/debug/deps/data_lock-ef5ad96c6d2df05e)
+
+running 2 tests
+test child_process_probe ... ok
+test excludes_another_process_and_releases_on_drop ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/debug_legacy.rs (target/debug/deps/debug_legacy-881204f3cc5da804)
+
+running 1 test
+test debug_empty_legacy_bind ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/federation_tls.rs (target/debug/deps/federation_tls-31cc4f1c98e0831d)
+
+running 3 tests
+test native_prosody_tls_external_bidirectional ... ignored, requires native Prosody cafd74b9c5ea and Lua TLS dependencies
+test mutual_tls_external_delivery_and_certificate_identity_rejection ... ok
+test reuses_connections_serializes_writes_and_retires_idle_or_closed_peers ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.78s
+
+     Running tests/gajim_features.rs (target/debug/deps/gajim_features-e7c7d91c351babfa)
+
+running 6 tests
+test unsupported_security_policy_configuration_returns_explicit_error ... ok
+test policy_catalog_selects_default_policy_and_maps_display_and_explicit_label ... ok
+test security_catalog_default_is_a_real_label_and_module_can_be_disabled ... ok
+test security_catalogs_serve_both_versions_and_preserve_requested_target ... ok
+test actual_example_policy_configuration_exposes_classifications_as_catalog_labels ... ok
+test malformed_or_unknown_policy_catalog_schemas_are_rejected ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/http_altconnect.rs (target/debug/deps/http_altconnect-14f29d9356cebf39)
+
+running 3 tests
+test native_link_order_schemes_and_loaded_module_gates ... ok
+test bad_advertisement_types_and_route_collisions_are_rejected ... ok
+test public_prefix_and_host_paths_inherit_independently ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/http_transport.rs (target/debug/deps/http_transport-c37f2e3353e873fd)
+
+running 10 tests
+test configured_origin_is_enforced ... ok
+test bosh_session_retries_restart_termination ... ok
+test bosh_preserves_namespace_inherited_from_body ... ok
+test transport_paths_and_cors_preflight_match_prosody ... ok
+test bosh_termination_waits_for_graceful_cleanup_before_reconnect ... ok
+test bosh_reorders_two_requests_without_replaying_stanzas ... ok
+test websocket_frames_are_independent_xml ... ok
+test websocket_close_allows_graceful_engine_cleanup ... ok
+test websocket_disconnect_delivers_eof_without_graceful_close ... ok
+test bosh_retry_survives_aborted_http_request_without_replaying_stanzas ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/http_upload.rs (target/debug/deps/http_upload-2bf4d21ec7a94075)
+
+running 5 tests
+test https_endpoint_uses_real_tls ... ok
+test percent_escape_case_and_equivalent_url_spelling ... ok
+test persisted_prosody_archive_and_hs256_slot_survive_without_sidecar ... ok
+test expired_upload_releases_quota ... ok
+test upload_authorization_streaming_ranges_and_restart ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/iq_errors.rs (target/debug/deps/iq_errors-cd271d10f103c019)
+
+running 2 tests
+test pep_errors_identify_the_account_and_echo_the_request ... ok
+test server_errors_without_target_remain_unaddressed_and_escape_attributes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/logging.rs (target/debug/deps/logging-01ec8ca10742ee47)
+
+running 10 tests
+test filters_appends_escapes_and_redacts ... ok
+test failed_reopen_keeps_all_original_handles ... ok
+test explicit_sink_levels_select_exactly_and_deduplicate ... ok
+test rejects_malformed_configuration ... ok
+test native_console_shorthands_are_accepted ... ok
+test reopen_rotated_files_updates_clones ... ok
+test shared_sink_unions_levels_and_preserves_distinct_destinations ... ok
+test overlapping_shorthand_destinations_receive_each_record_once ... ok
+test json_records_and_bounded_ranges ... ok
+test cloned_loggers_serialize_records ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/message_routing.rs (target/debug/deps/message_routing-939e83dd287a051d)
+
+running 2 tests
+test unknown_resource_falls_back_to_available_bare_jid ... ok
+test headline_uses_all_nonnegative_available_resources_and_errors_never_fallback ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/muc_access.rs (target/debug/deps/muc_access-8633e08b3182a3f0)
+
+running 3 tests
+test binary_occupant_id_salt_survives_saves_and_restarts ... ok
+test moderators_cannot_kick_or_demote_other_moderators ... ok
+test nested_affiliations_do_not_fall_back_to_obsolete_flat_entries ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/muc_crash_state.rs (target/debug/deps/muc_crash_state-3c2bff6990e06828)
+
+running 7 tests
+test safe_presence_checkpoint_sanitization_is_idempotent ... ok
+test foreign_stanzas_do_not_initialize_or_rewrite_muc_checkpoint ... ok
+test durable_disconnect_removes_last_temporary_room_without_shutdown_export ... ok
+test journal_failure_returns_no_routing_and_rolls_back_role_mutation ... ok
+test dormant_deadline_stays_fixed_when_another_occupant_recovers_and_sends ... ok
+test acknowledged_kick_and_room_destruction_cannot_resurrect_membership ... ok
+test temporary_membership_and_full_bounded_history_survive_ungraceful_loss ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/muc_domain_bans.rs (target/debug/deps/muc_domain_bans-00ed55610b56032f)
+
+running 2 tests
+test applying_domain_ban_removes_remote_occupants_and_blocks_rejoin ... ok
+test native_domain_bans_block_remote_users_but_allow_explicit_members ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/muc_extensions.rs (target/debug/deps/muc_extensions-29990cb0417edcd6)
+
+running 10 tests
+test broadcast_roles_hide_visitors_and_configuration_announces_transition ... ok
+test disabled_optional_vcard_and_occupant_ids_are_not_advertised_or_emitted ... ok
+test messages_cannot_spoof_room_identity_hats_or_occupant_identifiers ... ok
+test mam_all_rooms_presence_logging_public_queries_and_optional_totals ... ok
+test language_config_sections_discovery_and_native_affiliation_hats ... ok
+test large_optional_history_does_not_prevent_checkpointing_membership ... ok
+test restricted_private_messages_allow_self_and_optional_moderators ... ok
+test offline_reserved_affiliates_follow_anonymity_and_roominfo_counts_nicknames ... ok
+test explicit_new_nickname_consumes_old_proof_and_pending_nicks_are_reserved ... ok
+test recovery_claim_is_durable_and_unrelated_disconnect_keeps_temporary_claims ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/muc_flow.rs (target/debug/deps/muc_flow-4ea2eced07400fec)
+
+running 18 tests
+test configured_lock_timeout_expires_without_owner_submission ... ok
+test iq_response_requires_expected_sender ... ok
+test join_lock_chat_leave ... ok
+test authorization_and_conflict ... ok
+test multiple_resources_share_nick_and_private_delivery ... ok
+test nick_invite_destroy_and_local_creation ... ok
+test occupant_id_is_stable_and_spoofed_ids_removed ... ok
+test archive_history_and_permissions ... ok
+test persistence_roundtrip ... ok
+test native_muc_archive_type_and_anonymity_are_preserved ... ok
+test preserves_unknown_binary_mixed_room_fields ... ok
+test persistent_destroy_creates_prosody_tombstone ... ok
+test restored_temporary_room_is_deleted_after_last_disconnect ... ok
+test switching_to_members_only_removes_unaffiliated_users ... ok
+test maintenance_expires_idle_archives_and_tombstones ... ok
+test room_vcard_owner_only_and_avatar_presence ... ok
+test reserved_nickname_blocks_other_users ... ok
+test visitor_voice_request_cannot_spoof_identity_or_grant_itself_voice ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/muc_history.rs (target/debug/deps/muc_history-da0e1526596ca473)
+
+running 10 tests
+test replay_carries_room_delay_and_recipient ... ok
+test capacity_changes_trim_and_zero_disables_history ... ok
+test ordinary_history_is_bounded_and_returns_oldest_first ... ok
+test maxchars_counts_transmitted_utf8_bytes_including_address_and_delay ... ok
+test default_count_applies_only_without_valid_explicit_constraints ... ok
+test since_and_seconds_use_stricter_cutoff_inclusive ... ok
+test subjects_and_hints_follow_native_history_eligibility ... ok
+test snapshot_restores_last_message_without_adding_another_delay ... ok
+test only_direct_history_children_are_parsed ... ok
+test explicit_count_and_zero_limit ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/muc_latency_storage.rs (target/debug/deps/muc_latency_storage-dafa49c403cc007c)
+
+running 2 tests
+test groupchat_skips_native_rewrites_and_archive_retention_scan ... ok
+test native_exports_repair_missing_files_and_export_changed_config ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/muc_native.rs (target/debug/deps/muc_native-a1b69d04e00e3ca2)
+
+running 1 test
+test actual_prosody_muc_mam_reads_rust_and_writes_native_archive ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/muc_optional_admin.rs (target/debug/deps/muc_optional_admin-9392a925edd13a9b)
+
+running 4 tests
+test default_registration_denies_unaffiliated_users ... ok
+test configured_tombstone_expiry_allows_immediate_recreation ... ok
+test optional_registration_grants_membership_and_enforces_reserved_nickname ... ok
+test administration_commands_recheck_authority_bind_sessions_and_update_live_rooms ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/muc_protocol.rs (target/debug/deps/muc_protocol-091796ef65c3af71)
+
+running 5 tests
+test ordinary_presence_extensions_survive_but_client_identity_is_filtered ... ok
+test subject_with_body_remains_an_ordinary_groupchat_message ... ok
+test probes_and_invalid_presence_cannot_join_or_rename ... ok
+test room_creation_policies_apply_only_to_new_rooms ... ok
+test error_messages_kick_only_on_delivery_failure_and_presence_errors_kick ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/muc_recovery.rs (target/debug/deps/muc_recovery-5b3f8c060a571b96)
+
+running 7 tests
+test claim_is_one_time_and_does_not_change_untrusted_role ... ok
+test pending_snapshot_keeps_original_checkpoint_time ... ok
+test recovery_claim_requires_exact_authenticated_resource_and_expires ... ok
+test native_checkpoint_roundtrip_filters_sensitive_extensions ... ok
+test oversized_status_never_prevents_membership_checkpoint ... ok
+test native_last_message_roundtrip_preserves_namespaces_and_rejects_other_rooms ... ok
+test configuration_fingerprint_is_independent_of_lua_table_iteration_order ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/muc_restart_state.rs (target/debug/deps/muc_restart_state-8366baa2c93399ef)
+
+running 3 tests
+test unrelated_disconnect_does_not_delete_dormant_temporary_room ... ok
+test changed_configuration_invalidates_auto_recovery_without_disclosing_password ... ok
+test repeated_restart_keeps_dormant_claim_and_deadline_without_ghost_routing ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/muc_state_native.rs (target/debug/deps/muc_state_native-acf1660ee74f6bbb)
+
+running 1 test
+test actual_prosody_restores_rust_checkpoint_and_rust_reads_native_freeze ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pep_client_interop.rs (target/debug/deps/pep_client_interop-61f461765ca3ec79)
+
+running 7 tests
+test native_component_notification_type_applies_to_events_and_subscription_replay ... ok
+test missing_own_omemo_bundle_returns_recoverable_item_not_found ... ok
+test native_itemreply_controls_publisher_visibility_in_reads_and_replays ... ok
+test migrated_native_configuration_can_roundtrip_access_model_edit ... ok
+test publish_options_match_implicit_notification_defaults_on_old_nodes ... ok
+test avatar_and_omemo_publish_options_support_readback_and_caps_notifications ... ok
+test native_open_and_subscriber_publish_models_preserve_outcast_and_blocking_checks ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+     Running tests/pep_diagnostics.rs (target/debug/deps/pep_diagnostics-d47a48adb160af2c)
+
+running 6 tests
+test nonempty_xml_can_be_an_empty_android_device_list ... ok
+test avatar_classification_does_not_inspect_or_expose_avatar_data ... ok
+test arbitrary_node_payload_and_wrong_namespace_do_not_leak ... ok
+test only_first_direct_item_is_parsed_and_protocols_are_distinct ... ok
+test payloadless_notification_is_visible_without_identifiers ... ok
+test signed_integer_limits_and_duplicates_match_java_parser ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pep_discovery.rs (target/debug/deps/pep_discovery-b8cb7ce53b40edc2)
+
+running 4 tests
+test standalone_component_does_not_claim_pep_automatic_subscriptions ... ok
+test node_discovery_keeps_node_identity_errors_and_access_checks ... ok
+test account_discovery_does_not_intercept_server_or_resource_caps ... ok
+test account_disco_advertises_pep_without_requiring_a_node ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/pep_item_order.rs (target/debug/deps/pep_item_order-f09d645d4a4abd6c)
+
+running 2 tests
+test native_prosody_orders_retained_pep_items_newest_first ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+test first_pep_item_is_current_device_list_even_with_retained_old_items ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/preauth.rs (target/debug/deps/preauth-9513a735a4500dd1)
+
+running 10 tests
+test duplicate_or_wrong_namespace_tokens_do_not_qualify ... ok
+test prosody_numeric_expiry_is_consumed_and_other_entries_preserved ... ok
+test standard_adhoc_command_returns_contact_uri ... ok
+test unknown_tokens_do_not_create_invite_stores_and_disabled_accounts_cannot_issue ... ok
+test unknown_client_token_is_preserved_on_remote_and_pending_delivery ... ok
+test concurrent_redemption_has_exactly_one_winner ... ok
+test identity_scope_does_not_burn_on_wrong_sender_or_leak_to_prosody ... ok
+test invitations_expire_are_single_use_and_owner_scoped ... ok
+test valid_token_autoapproves_and_sends_reciprocal_request ... ok
+test local_invitation_updates_both_rosters_without_granting_reverse_subscription ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/preauth_native.rs (target/debug/deps/preauth_native-6a70d29baa867634)
+
+running 1 test
+test native_prosody_invitation_tokens_roundtrip ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pubsub_native.rs (target/debug/deps/pubsub_native-377562a81030ea91)
+
+running 1 test
+test native_prosody_pep_reads_rust_and_rust_reads_native ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pubsub_persistence.rs (target/debug/deps/pubsub_persistence-704e80a86a56786e)
+
+running 18 tests
+test configurable_limits_component_creation_and_publisher ... ok
+test native_string_max_items_satisfies_numeric_publish_precondition ... ok
+test configure_requires_owner ... ok
+test modern_bookmarks_notify_legacy_capability ... ok
+test capability_discovery_replays_and_filters_notifications ... ok
+test open_model_and_notifications ... ok
+test nonpersistent_items_stay_in_memory_and_can_be_made_persistent ... ok
+test pep_persists_namespaces_and_enforces_owner ... ok
+test reads_prosody_legacy_fixture ... ok
+test full_jid_block_applies_to_reads_subscription_replays_and_events ... ok
+test roster_presence_access_and_foreign_subscription_denied ... ok
+test subscription_options_disable_events_and_require_subscriber ... ok
+test native_notification_fields_and_retract_policy_are_independent ... ok
+test remote_caps_replay_and_open_node_privacy_revoke ... ok
+test remote_unavailable_is_scoped_to_addressed_owner_and_cancels_pending ... ok
+test publish_options_conflict_is_recoverable_and_preserves_item ... ok
+test payload_policy_applies_to_subscription_and_caps_replays ... ok
+test component_default_retention_matches_prosody_twenty_items ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+     Running tests/push.rs (target/debug/deps/push-0e45f6fc5bd835b8)
+
+running 7 tests
+test native_push_body_lookup_excludes_extensions ... ignored, requires PROSODY_REFERENCE_SOURCE and PROSODY_REFERENCE_LUA
+test foreign_account_cannot_register ... ok
+test queue_coalesces_and_importance_matches_native ... ok
+test push_summary_never_copies_foreign_namespace_body ... ok
+test stable_client_registration_and_targeted_notification ... ok
+test reenable_cancels_old_errors_and_failure_counts_are_per_account ... ok
+test registrations_notifications_and_authenticated_errors ... ok
+
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/reference_prosody.rs (target/debug/deps/reference_prosody-c3ff35e56d4e86c3)
+
+running 1 test
+test real_prosody_storage_and_auth_roundtrip ... ignored, requires native supplied Prosody source; run scripts/prosody_compat/verify.sh
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/resource_sessions.rs (target/debug/deps/resource_sessions-e9012b2ce2cd81e8)
+
+running 7 tests
+test increment_skips_occupied_suffixes_and_preserves_sessions ... ok
+test kick_new_leaves_existing_session_unchanged ... ok
+test invalid_resume_owner_or_ack_does_not_evict_active_session ... ok
+test replacement_revokes_hibernating_resume_and_survives_old_cleanup ... ok
+test random_conflicts_get_distinct_resources_for_same_owner ... ok
+test concurrent_default_binds_replace_atomically ... ok
+test active_resume_preserves_state_and_replaces_transport_notifier ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/sasl_accounts.rs (target/debug/deps/sasl_accounts-5692cf50bd10a532)
+
+running 1 test
+test disabled_legacy_and_unicode_accounts ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+
+     Running tests/session_routing_isolation.rs (target/debug/deps/session_routing_isolation-5baa79fc48161d1a)
+
+running 2 tests
+test unrelated_busy_session_does_not_block_account_routing_or_carbons_selection ... ok
+test duplicate_acknowledgement_does_not_rewrite_durable_slot ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/sm_durable_slots.rs (target/debug/deps/sm_durable_slots-f0461d407623da48)
+
+running 11 tests
+test corrupt_committed_slot_fails_recovery_closed ... ok
+test durable_tokens_and_private_pending_output_have_owner_only_permissions ... ok
+test recovery_discards_owned_crash_temps_and_keeps_last_committed_slot ... ok
+test disconnected_deadline_is_fixed_across_recovery ... ok
+test session_reference_does_not_keep_store_locked_or_allow_unpersisted_writes ... ok
+test durable_counters_wrap_without_accepting_stale_acknowledgements ... ok
+test restart_restores_owner_presence_and_only_unacknowledged_output ... ok
+test shutdown_freeze_retires_old_transport_before_cleanup ... ok
+test independent_hubs_with_identical_connection_names_keep_their_own_slots ... ok
+test graceful_close_conflict_account_purge_and_expiration_remove_tokens ... ok
+test store_has_one_process_owner_and_enforces_output_byte_bound ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/sm_journal.rs (target/debug/deps/sm_journal-79fad6209c2b84bb)
+
+running 14 tests
+test offline_checkpoint_refuses_live_store_and_preserves_redo ... ok
+test complete_corrupt_frame_fails_closed_even_with_valid_export ... ok
+test export_failure_after_commit_advances_memory_and_fences_later_writes ... ok
+test journal_symlink_is_rejected_without_following_target ... ok
+test offline_checkpoint_durably_applies_expiration_and_tombstones ... ok
+test durable_tombstone_overrides_resurrected_stale_json ... ok
+test legacy_json_migrates_and_baseline_survives_partial_first_append ... ok
+test offline_checkpoint_repairs_exports_removes_redo_and_allows_legacy_restart ... ok
+test partial_tail_is_discarded_and_subsequent_commits_survive_restart ... ok
+test redo_repairs_missing_or_torn_export_before_json_validation ... ok
+test superseded_frames_still_require_valid_checksums_json_and_baseline_flags ... ok
+test incomplete_baseline_or_magic_never_falls_back_to_json ... ok
+test retired_journals_are_collected_in_bounded_batches ... ok
+test rotation_preserves_latest_snapshot_and_bounds_redo_size ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.68s
+
+     Running tests/storage_accounts.rs (target/debug/deps/storage_accounts-fdc43ba33b859f36)
+
+running 20 tests
+test broken_roster_is_not_overwritten ... ok
+test account_purge_refuses_symlink_store_without_touching_other_files ... ok
+test blocklist_enforcement_api ... ok
+test inbound_subscription_requires_pending_to_grant_to ... ok
+test malformed_legacy_vcard_and_private_bookmarks_rejected ... ok
+test malformed_roster_iq_never_mutates ... ok
+test domain_roster_and_block_jid_normalization ... ok
+test private_and_vcard_authorization ... ok
+test privacy_migration_only_default_deny_jids ... ok
+test reads_timestamp_blocklist_and_keeps_metadata ... ok
+test purge_account_exact_files_preserves_others_and_extras ... ok
+test roster_empty_name_and_foreign_group_ignored ... ok
+test roster_preserves_subscription_and_metadata ... ok
+test subscription_handshake_and_cancel ... ok
+test bookmarks_private_pep_bidirectional_and_private ... ok
+test legacy_bookmarks_respect_host_limit_and_read_over_256 ... ok
+test password_change_after_purge_never_recreates_account ... ok
+test vcard_pep_conversion_and_avatar ... ok
+test legacy_migration_clears_source_after_success ... ok
+test creation_and_purge_are_serialized ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.85s
+
+     Running tests/storage_compat.rs (target/debug/deps/storage_compat-1a2a06a683b10c52)
+
+running 6 tests
+test empty_namespace_preserved ... ok
+test mixed_binary_roundtrip ... ok
+test stanza_roundtrip ... ok
+test path_and_atomic_update ... ok
+test rejects_cycles_code_and_bad_files ... ok
+test concurrent_updates_do_not_lose_entries ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/tls_binding.rs (target/debug/deps/tls_binding-843324d9ea5399ea)
+
+running 4 tests
+test unknown_and_eddsa_algorithms_fail_closed ... ok
+test malformed_der_and_pss_parameters_fail_closed ... ok
+test ecdsa_uses_certificate_signature_hash ... ok
+test rsa_signature_digest_and_weak_hash_upgrade ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/tls_plus_network.rs (target/debug/deps/tls_plus_network-694d2113f20c4fcb)
+
+running 2 tests
+test disabling_plus_hides_bindings_and_accepts_scram_y_with_mechanisms_only_ssdp ... ok
+test starttls_scram_plus_binds_real_tls_and_authenticates_ssdp_sasl1_and_sasl2 ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.13s
+
+   Doc-tests rust_xmpp
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+    Finished `dev` profile [unoptimized] target(s) in 0.36s
+    Finished `release` profile [optimized] target(s) in 0.28s
+PASS: integrated TCP roster/subscriptions, client IQ routing, CSI buffering/keepalive flush, MAM, blocking, OMEMO PEP, MUC, offline replay and SM resumption
+PASS: graceful SIGTERM shutdown
+PASS: independent SCRAM-SHA-1 over TLS, SASL1/SASL2, SSDP verification, server signatures and wrong-password rejection
+PASS: independent SCRAM-SHA-256 over TLS, SASL1/SASL2, SSDP verification, server signatures and wrong-password rejection
+PASS: Android TLS1.2 selector, TLS1.2/1.3 SCRAM SHA1/256 PLUS, SASL1/2, SSDP on/off and invalid binding rejection
+PASS: JSON file logging, TLS/auth/bind correlation, rejection reasons, secret redaction and SIGHUP rotation
+PASS: 20 TLS1.2/1.3 SASL1/2 cases: prepared PLAIN identities and canonical binds, invalid authz rejection, SCRAM abort/retry and active exchange restart
+PASS: WSS SCRAM-SHA-256 SASL1/SASL2 with GS2 y, absent CB/PLUS, SSDP without CB separator, server signatures, bind and ping
+PASS: HTTPS-only configured interfaces (127.0.0.1,::1), verified TLS, reproduced original Origin 403 then allowed Converse Origin 101, xmpp subprotocol, both WS paths, RFC 7395 open/features/close and private HTTP diagnostics
+PASS: custom WS/BOSH routes, default-route 404, exact Origin policy, verified TLS proxy rewrite, trusted HTTPS metadata, untrusted/spoofed metadata denial, IPv6 when available, authenticated WS/BOSH bind/ping in legacy and RFC7239 modes and cached BOSH RID retry
+PASS: XEP-0156 XRD/JRD parity, CORS, safe methods, ignored JSONP, host checks, secure URL preference, custom mounts/public prefixes, module and advertisement gates, HTTP fallback and verified WSS framing
+PASS: SASL2 Bind2 TLS flow, inline SM/CSI/Carbons, private random resource, malformed requests, authentication failure and fallback
+{
+  "binary_source": "/workspace/scratch/362577cdf2e0/recovered/rust-xmpp/target/release/rust-xmpp",
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "real loopback TCP/STARTTLS/SASL2 Bind2; isolated personal MAM fixture; no production latency claim",
+  "timing": "raw ordered samples; auth timer starts before authenticate and ends at parsed success; full timer includes TCP/STARTTLS/features; metadata IQ timer runs from send to parsed result",
+  "result": {
+    "status": "pass",
+    "seeded_personal_archive_records": 10000,
+    "archive_bytes": 2138890,
+    "archive_expires_after": "never",
+    "index_present_before_start": false,
+    "reconnect_samples": 2,
+    "expected_metadata": {
+      "start": {
+        "id": "seed-0",
+        "timestamp": "2026-01-01T00:00:00Z"
+      },
+      "end": {
+        "id": "seed-9999",
+        "timestamp": "2026-01-01T02:46:39Z"
+      }
+    },
+    "observed_metadata": [
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-9999",
+          "timestamp": "2026-01-01T02:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-9999",
+          "timestamp": "2026-01-01T02:46:39Z"
+        }
+      }
+    ],
+    "mam_metadata_iq": {
+      "samples_ms": [
+        1.066574000105902,
+        0.6786549997741531
+      ],
+      "median_ms": 0.8726144999400276,
+      "p95_ms": 1.066574000105902,
+      "max_ms": 1.066574000105902
+    },
+    "observed_iq_metadata": [
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-9999",
+          "timestamp": "2026-01-01T02:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-9999",
+          "timestamp": "2026-01-01T02:46:39Z"
+        }
+      }
+    ],
+    "sasl2_bind2_success": {
+      "samples_ms": [
+        5.694160000075499,
+        4.350195999904827
+      ],
+      "median_ms": 5.022177999990163,
+      "p95_ms": 5.694160000075499,
+      "max_ms": 5.694160000075499
+    },
+    "tcp_starttls_to_bind2_success": {
+      "samples_ms": [
+        51.93691700014824,
+        9.144003000074008
+      ],
+      "median_ms": 30.540460000111125,
+      "p95_ms": 51.93691700014824,
+      "max_ms": 51.93691700014824
+    }
+  }
+}
+PASS: bind2-disabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-disabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-enabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: bind2-enabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: sm-disabled, SSDP=False, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: sm-disabled, SSDP=True, SCRAM-SHA-1/PLAIN success and wrong-password rejection
+PASS: enabled-False-registration-False
+PASS: enabled-False-registration-True
+PASS: enabled-True-registration-False
+PASS: enabled-True-registration-True
+PASS: Gajim domain/account discovery, both label catalogs, authenticated password changes, IBR registration gates and fresh logins
+PASS: SASL2 inline SM active/EOF resume, authenticated owner/id/h checks, replay ordering, full JID, Bind2 fallback and malformed requests
+PASS: TLS account/domain discovery with PEP and push enabled/disabled; real push enable, publish options, per-node and service-wide disable
+PASS: TLS Monocles/Conversations PEP first-run, no-to publishing, owner config recovery, migrated metadata, device item selectors and restart persistence
+PASS: Android first-item device-list parsing sees latest publish and replacement before and after restart
+PASS: STARTTLS PEP replay/live diagnostics, legacy/OMEMO2, payloadless notifications with intact IQ payloads, and private values excluded
+PASS: TLS invitation command discovery, preapproval, single-use mutual roster, replay denial, unknown preauth forwarding/offline pending, account isolation
+PASS: STARTTLS MUC SIGTERM restart restores live temporary/persistent rooms, exact full-JID membership, roles, presence and groupchat routing; rejects automatic cross-resource/account claims and nickname theft
+PASS: recovery-history
+PASS: leave
+PASS: kick
+PASS: demotion
+PASS: password
+PASS: configuration
+PASS: restart-grace
+PASS: custom-grace
+PASS: unknown-module
+PASS: destroy-tombstone
+PASS: actual STARTTLS SIGKILL MUC recovery, history, acknowledged barriers and fixed grace
+PASS: TLS legacy/SASL2 durable SM after SIGKILL/SIGTERM, WAL repair of torn JSON export, counters, ack pruning, at-least-once pending replay, owner/token/h rejection, transport/resource conflict, MUC activation/offline fanout, grace expiry and account deletion/recreation revocation
+slow storage: delay=0ms pass
+slow storage: delay=25ms pass
+{
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback STARTTLS; four SM resources/two accounts; MAM + pending avatar metadata PEP; fixture-only fsync/fdatasync including data directories; real sync retained; operation windows include background SM heartbeat",
+  "cases": [
+    {
+      "samples": [
+        {
+          "phase": "settled",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 39.470501,
+            "sent": 41.015747,
+            "received": 44.554614
+          },
+          "sender_sm_handled_ms": 44.465736,
+          "publication_plus_delivery_ms": 44.97935,
+          "sync": {
+            "total": 12,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 2,
+              "mam:file:fsync": 6,
+              "sm:file:fdatasync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 26.26214,
+            "sent": 25.158712,
+            "received": 31.286286
+          },
+          "sender_sm_handled_ms": 27.864111,
+          "publication_plus_delivery_ms": 31.451848,
+          "sync": {
+            "total": 14,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:file:fdatasync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mam_records_per_account": [
+        102,
+        102
+      ],
+      "status": "pass",
+      "delay_ms_per_sync": 0,
+      "server_message_processing_slow_events": [],
+      "server_message_processing_slow_ms": []
+    },
+    {
+      "samples": [
+        {
+          "phase": "settled",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 275.886028,
+            "sent": 301.622161,
+            "received": 329.711046
+          },
+          "sender_sm_handled_ms": 329.191636,
+          "publication_plus_delivery_ms": 329.775764,
+          "sync": {
+            "total": 12,
+            "by_store_kind_op": {
+              "mam:directory:fsync": 2,
+              "mam:file:fsync": 6,
+              "sm:file:fdatasync": 4
+            }
+          },
+          "pending_per_resource": [
+            1,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "phase": "avatar_pending",
+          "round": 0,
+          "delivery_ms": {
+            "direct": 361.511491,
+            "sent": 334.405511,
+            "received": 388.751412
+          },
+          "sender_sm_handled_ms": 388.185146,
+          "publication_plus_delivery_ms": 388.926605,
+          "sync": {
+            "total": 14,
+            "by_store_kind_op": {
+              "mam:file:fsync": 2,
+              "pep:directory:fsync": 2,
+              "pep:file:fsync": 2,
+              "sm:file:fdatasync": 8
+            }
+          },
+          "pending_per_resource": [
+            3,
+            2,
+            3,
+            2
+          ]
+        }
+      ],
+      "mam_records_per_account": [
+        102,
+        102
+      ],
+      "status": "pass",
+      "delay_ms_per_sync": 25,
+      "server_message_processing_slow_events": [
+        {
+          "duration_ms": 327,
+          "route": "local",
+          "pre_routing_ms": 0,
+          "sender_mam_ms": 111,
+          "recipient_mam_ms": 106,
+          "delivery_ms": 27,
+          "carbons_ms": 53,
+          "offline_push_ms": 0,
+          "handled_ms": 27,
+          "target_count": 1,
+          "carbon_count": 2
+        }
+      ],
+      "server_message_processing_slow_ms": [
+        327
+      ]
+    }
+  ]
+}
+{
+  "status": "pass",
+  "delay_ms_per_sync": 25,
+  "acknowledged_messages": 3,
+  "mam_records_per_account": [
+    3,
+    3
+  ],
+  "resumed_resources": 4,
+  "replayed_personal_deliveries": 9,
+  "offline_checkpoint": {
+    "exported_sessions": 4,
+    "native_archives": 2,
+    "journals_removed": true,
+    "second_invocation_idempotent": true
+  },
+  "pending_before_reauthentication": [
+    2,
+    3,
+    4,
+    3
+  ],
+  "sync_between_publication_and_sigkill": {
+    "total": 32,
+    "by_store_kind_op": {
+      "mam:directory:fsync": 2,
+      "mam:file:fsync": 10,
+      "pep:directory:fsync": 2,
+      "pep:file:fsync": 2,
+      "sm:file:fdatasync": 16
+    }
+  },
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback STARTTLS; real delayed fsync/fdatasync; sender SM acknowledgement then SIGKILL; authoritative queues and MAM checked before reauthentication; at-least-once replay"
+}
+{
+  "status": "pass",
+  "cases": [
+    {
+      "suffix": ".wal",
+      "status": "pass",
+      "checkpoint_rejected_sync_failure": true,
+      "journals_preserved_on_failure": 4,
+      "serve_rejected_before_listeners": true,
+      "clean_retry_preserved_sessions": 4,
+      "clean_retry_preserved_archives": 2
+    },
+    {
+      "suffix": ".rredo",
+      "status": "pass",
+      "checkpoint_rejected_sync_failure": true,
+      "journals_preserved_on_failure": 2,
+      "serve_rejected_before_listeners": false,
+      "clean_retry_preserved_sessions": 4,
+      "clean_retry_preserved_archives": 2
+    }
+  ],
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a"
+}
+{
+  "status": "pass",
+  "recipient_state": "hibernating",
+  "durable_pending_at_gateway_stream": {
+    "push-first": true,
+    "push-second": true
+  },
+  "observation_seconds": 2,
+  "elapsed_seconds": 2.013597706999917,
+  "gateway_post_tls_stream_observed": true,
+  "gateway_post_tls_stream_at_bound": true,
+  "blocked_stage": "post-tls-features",
+  "durable_pending": {
+    "push-first": true,
+    "push-second": true
+  },
+  "sender_sm_ack_h": [
+    4
+  ],
+  "sender_inputs": 4,
+  "sender_handled_before": 2,
+  "binary_version": "rust-xmpp 0.8.3 \u2014 experimental XMPP runtime",
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback TLS fixture; stalled external XMPP push service; no APNs/FCM"
+}
+{
+  "status": "pass",
+  "recipient_state": "offline",
+  "durable_pending_at_gateway_stream": {
+    "push-first": true,
+    "push-second": true
+  },
+  "observation_seconds": 2,
+  "elapsed_seconds": 2.1132061280000016,
+  "gateway_post_tls_stream_observed": true,
+  "gateway_post_tls_stream_at_bound": true,
+  "blocked_stage": "post-tls-features",
+  "durable_pending": {
+    "push-first": true,
+    "push-second": true
+  },
+  "sender_sm_ack_h": [
+    4
+  ],
+  "sender_inputs": 4,
+  "sender_handled_before": 2,
+  "binary_version": "rust-xmpp 0.8.3 \u2014 experimental XMPP runtime",
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback TLS fixture; stalled external XMPP push service; no APNs/FCM"
+}
+personal latency: roster=0 csi=default pass
+personal latency: roster=0 csi=native pass
+{
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback STARTTLS; fixture only; forced CSI dwell explicitly separated",
+  "cases": [
+    {
+      "active": {
+        "delivery": {
+          "samples": 1,
+          "median_ms": 42.84763399982694,
+          "p95_ms": 42.84763399982694,
+          "max_ms": 42.84763399982694,
+          "samples_ms": [
+            42.84763399982694
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 1,
+          "median_ms": 41.45799199977773,
+          "p95_ms": 41.45799199977773,
+          "max_ms": 41.45799199977773,
+          "samples_ms": [
+            41.45799199977773
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 1,
+          "median_ms": 51.320845000191184,
+          "p95_ms": 51.320845000191184,
+          "max_ms": 51.320845000191184,
+          "samples_ms": [
+            51.320845000191184
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 1,
+          "median_ms": 8.362257000044337,
+          "p95_ms": 8.362257000044337,
+          "max_ms": 8.362257000044337,
+          "samples_ms": [
+            8.362257000044337
+          ]
+        }
+      },
+      "inactive": {
+        "delivery": {
+          "samples": 1,
+          "median_ms": 7.461921999947663,
+          "p95_ms": 7.461921999947663,
+          "max_ms": 7.461921999947663,
+          "samples_ms": [
+            7.461921999947663
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 1,
+          "median_ms": 6.771670000034646,
+          "p95_ms": 6.771670000034646,
+          "max_ms": 6.771670000034646,
+          "samples_ms": [
+            6.771670000034646
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 1,
+          "median_ms": 12.700967000000674,
+          "p95_ms": 12.700967000000674,
+          "max_ms": 12.700967000000674,
+          "samples_ms": [
+            12.700967000000674
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 1,
+          "median_ms": 5.201973000112048,
+          "p95_ms": 5.201973000112048,
+          "max_ms": 5.201973000112048,
+          "samples_ms": [
+            5.201973000112048
+          ]
+        }
+      },
+      "receipt_only-active": {
+        "delivery_ms": 23.464398000214715,
+        "sender_sm_handled_ms": 23.388774000068224,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "receipt_only-inactive": {
+        "delivery_ms": 11.619346000316,
+        "sender_sm_handled_ms": 11.170642000251974,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_legacy_only-active": {
+        "delivery_ms": 3.3123490002253675,
+        "sender_sm_handled_ms": 3.2682549999663024,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_legacy_only-inactive": {
+        "delivery_ms": 5.355494000014005,
+        "sender_sm_handled_ms": 4.585807000239583,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_2_only-active": {
+        "delivery_ms": 6.6929370000252675,
+        "sender_sm_handled_ms": 5.942287999914697,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_2_only-inactive": {
+        "delivery_ms": 7.484531000045536,
+        "sender_sm_handled_ms": 7.103434999862657,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_with_eme-active": {
+        "delivery_ms": 8.187372000065807,
+        "sender_sm_handled_ms": 7.642809000117268,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_with_eme-inactive": {
+        "delivery_ms": 8.972958999947878,
+        "sender_sm_handled_ms": 8.508876000178134,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_received-active": {
+        "delivery_ms": 7.674009000311344,
+        "sender_sm_handled_ms": 7.3800410000330885,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_received-inactive": {
+        "delivery_ms": 5.613406000065879,
+        "sender_sm_handled_ms": 5.646823999995831,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_displayed-active": {
+        "delivery_ms": 5.180439000014303,
+        "sender_sm_handled_ms": 4.853748000186897,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_displayed-inactive": {
+        "delivery_ms": 8.705914999609377,
+        "sender_sm_handled_ms": 8.28981999984535,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_acknowledged-active": {
+        "delivery_ms": 6.910242000230937,
+        "sender_sm_handled_ms": 6.799871000112034,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_acknowledged-inactive": {
+        "delivery_ms": 8.707511000011436,
+        "sender_sm_handled_ms": 8.398837999720854,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "low_priority_headline-active": {
+        "delivery_ms": 4.267847999926744,
+        "sender_sm_handled_ms": 4.236566000145103,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "low_priority_headline-inactive": {
+        "delivery_ms": 108.03854200003116,
+        "sender_sm_handled_ms": 2.853955999853497,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 3.106009000021004
+      },
+      "sm_backlog": {
+        "seeded_messages": 30,
+        "durable_pending_before_sample": 30,
+        "delivery_ms": 8.070619000136503,
+        "sender_sm_handled_ms": 7.959626000229036
+      },
+      "status": "pass",
+      "final_personal_mam_records_per_user": [
+        1045,
+        1045
+      ],
+      "csi_policy": "default",
+      "baseline_expect_held": false,
+      "roster_contacts_per_user": 0,
+      "seeded_personal_mam_records_per_user": 1000,
+      "archive_policy": "always"
+    },
+    {
+      "active": {
+        "delivery": {
+          "samples": 1,
+          "median_ms": 9.351153999887174,
+          "p95_ms": 9.351153999887174,
+          "max_ms": 9.351153999887174,
+          "samples_ms": [
+            9.351153999887174
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 1,
+          "median_ms": 9.169040999950084,
+          "p95_ms": 9.169040999950084,
+          "max_ms": 9.169040999950084,
+          "samples_ms": [
+            9.169040999950084
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 1,
+          "median_ms": 13.487032000284671,
+          "p95_ms": 13.487032000284671,
+          "max_ms": 13.487032000284671,
+          "samples_ms": [
+            13.487032000284671
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 1,
+          "median_ms": 4.101098000319325,
+          "p95_ms": 4.101098000319325,
+          "max_ms": 4.101098000319325,
+          "samples_ms": [
+            4.101098000319325
+          ]
+        }
+      },
+      "inactive": {
+        "delivery": {
+          "samples": 1,
+          "median_ms": 5.198949999794422,
+          "p95_ms": 5.198949999794422,
+          "max_ms": 5.198949999794422,
+          "samples_ms": [
+            5.198949999794422
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 1,
+          "median_ms": 5.164645999684581,
+          "p95_ms": 5.164645999684581,
+          "max_ms": 5.164645999684581,
+          "samples_ms": [
+            5.164645999684581
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 1,
+          "median_ms": 13.508577999800764,
+          "p95_ms": 13.508577999800764,
+          "max_ms": 13.508577999800764,
+          "samples_ms": [
+            13.508577999800764
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 1,
+          "median_ms": 8.226426999954128,
+          "p95_ms": 8.226426999954128,
+          "max_ms": 8.226426999954128,
+          "samples_ms": [
+            8.226426999954128
+          ]
+        }
+      },
+      "receipt_only-active": {
+        "delivery_ms": 8.37234799973885,
+        "sender_sm_handled_ms": 7.964516999891202,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "receipt_only-inactive": {
+        "delivery_ms": 109.20343799989496,
+        "sender_sm_handled_ms": 5.452117000004364,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 2.879265000046871
+      },
+      "omemo_legacy_only-active": {
+        "delivery_ms": 4.961447999903612,
+        "sender_sm_handled_ms": 4.207620999750361,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_legacy_only-inactive": {
+        "delivery_ms": 107.77542400001039,
+        "sender_sm_handled_ms": 4.299592999814195,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 1.5704200000072888
+      },
+      "omemo_2_only-active": {
+        "delivery_ms": 3.2654749998073385,
+        "sender_sm_handled_ms": 3.3216599999832397,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_2_only-inactive": {
+        "delivery_ms": 109.47085399993739,
+        "sender_sm_handled_ms": 5.282463000185089,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 2.073672999813425
+      },
+      "omemo_with_eme-active": {
+        "delivery_ms": 6.262568000238389,
+        "sender_sm_handled_ms": 6.371549000050436,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_with_eme-inactive": {
+        "delivery_ms": 5.960880999737128,
+        "sender_sm_handled_ms": 5.667837000146392,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_received-active": {
+        "delivery_ms": 7.435425000039686,
+        "sender_sm_handled_ms": 7.0634520002386125,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_received-inactive": {
+        "delivery_ms": 110.35115000004225,
+        "sender_sm_handled_ms": 5.86408199978905,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 2.434945000004518
+      },
+      "marker_displayed-active": {
+        "delivery_ms": 3.6287610000727,
+        "sender_sm_handled_ms": 3.696032999869203,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_displayed-inactive": {
+        "delivery_ms": 112.26732199975231,
+        "sender_sm_handled_ms": 8.923948999836284,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 1.43316000003324
+      },
+      "marker_acknowledged-active": {
+        "delivery_ms": 4.8418340002172044,
+        "sender_sm_handled_ms": 4.916578000120353,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "marker_acknowledged-inactive": {
+        "delivery_ms": 110.98447399990619,
+        "sender_sm_handled_ms": 5.764318000274216,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 3.3109219998550543
+      },
+      "low_priority_headline-active": {
+        "delivery_ms": 4.907228000320174,
+        "sender_sm_handled_ms": 4.593587000272237,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "low_priority_headline-inactive": {
+        "delivery_ms": 106.62631800005329,
+        "sender_sm_handled_ms": 2.990170999964903,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 0.1,
+        "after_activation_ms": 1.6857880000316072
+      },
+      "sm_backlog": {
+        "seeded_messages": 30,
+        "durable_pending_before_sample": 30,
+        "delivery_ms": 8.221272999890061,
+        "sender_sm_handled_ms": 8.186153000224294
+      },
+      "status": "pass",
+      "final_personal_mam_records_per_user": [
+        1045,
+        1045
+      ],
+      "csi_policy": "native",
+      "baseline_expect_held": false,
+      "roster_contacts_per_user": 0,
+      "seeded_personal_mam_records_per_user": 1000,
+      "archive_policy": "always"
+    }
+  ]
+}
+{
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "scope": "loopback STARTTLS; isolated fixture; no production latency claim",
+  "cases": [
+    {
+      "mam_enabled": false,
+      "sm_enabled": true,
+      "rounds": 3,
+      "seeded_muc_archive_records": 0,
+      "active": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 4.143083000144543,
+          "p95_ms": 4.93642399987948,
+          "max_ms": 4.93642399987948,
+          "samples_ms": [
+            3.696470000249974,
+            4.143083000144543,
+            4.93642399987948
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 7.870596999964619,
+          "p95_ms": 9.694742000192491,
+          "max_ms": 9.694742000192491,
+          "samples_ms": [
+            6.874975000300765,
+            7.870596999964619,
+            9.694742000192491
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 5.900040999677003,
+          "p95_ms": 7.969602999764902,
+          "max_ms": 7.969602999764902,
+          "samples_ms": [
+            5.821586999900319,
+            5.900040999677003,
+            7.969602999764902
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 5.960388999938004,
+          "p95_ms": 7.993037999767694,
+          "max_ms": 7.993037999767694,
+          "samples_ms": [
+            5.878290999589808,
+            5.960388999938004,
+            7.993037999767694
+          ]
+        }
+      },
+      "inactive": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 5.0425129998075136,
+          "p95_ms": 7.315005000236852,
+          "max_ms": 7.315005000236852,
+          "samples_ms": [
+            4.380938000394963,
+            5.0425129998075136,
+            7.315005000236852
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 10.0754559998677,
+          "p95_ms": 10.938076000002184,
+          "max_ms": 10.938076000002184,
+          "samples_ms": [
+            9.307660000104079,
+            10.0754559998677,
+            10.938076000002184
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 7.609957000113354,
+          "p95_ms": 11.771537000186072,
+          "max_ms": 11.771537000186072,
+          "samples_ms": [
+            6.104942000092706,
+            7.609957000113354,
+            11.771537000186072
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 7.667055000183609,
+          "p95_ms": 11.796262000189017,
+          "max_ms": 11.796262000189017,
+          "samples_ms": [
+            6.127774000106001,
+            7.667055000183609,
+            11.796262000189017
+          ]
+        }
+      },
+      "urgent_flush": {
+        "samples": 1,
+        "median_ms": 5.278352000004816,
+        "p95_ms": 5.278352000004816,
+        "max_ms": 5.278352000004816,
+        "samples_ms": [
+          5.278352000004816
+        ]
+      },
+      "headline_durably_buffered": true,
+      "activation_drained_queue": true,
+      "personal_archive_records": 0,
+      "muc_archive_records": 0,
+      "wire_body_deliveries": 27,
+      "status": "pass"
+    },
+    {
+      "mam_enabled": true,
+      "sm_enabled": true,
+      "rounds": 3,
+      "seeded_muc_archive_records": 0,
+      "active": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 10.551587000009022,
+          "p95_ms": 20.800788999622455,
+          "max_ms": 20.800788999622455,
+          "samples_ms": [
+            5.0626510001166025,
+            10.551587000009022,
+            20.800788999622455
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 15.337097000156064,
+          "p95_ms": 26.38667399969563,
+          "max_ms": 26.38667399969563,
+          "samples_ms": [
+            9.413597999810008,
+            15.337097000156064,
+            26.38667399969563
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 10.394344000360434,
+          "p95_ms": 16.581935999965935,
+          "max_ms": 16.581935999965935,
+          "samples_ms": [
+            8.805578000192327,
+            10.394344000360434,
+            16.581935999965935
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 10.42514700020547,
+          "p95_ms": 16.673915999945166,
+          "max_ms": 16.673915999945166,
+          "samples_ms": [
+            8.871858000020438,
+            10.42514700020547,
+            16.673915999945166
+          ]
+        }
+      },
+      "inactive": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 7.889199000146618,
+          "p95_ms": 11.342069999955129,
+          "max_ms": 11.342069999955129,
+          "samples_ms": [
+            5.518897999991168,
+            7.889199000146618,
+            11.342069999955129
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 14.882663000207685,
+          "p95_ms": 21.825366000030044,
+          "max_ms": 21.825366000030044,
+          "samples_ms": [
+            12.562355999762076,
+            14.882663000207685,
+            21.825366000030044
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 9.635100000195962,
+          "p95_ms": 13.13320899998871,
+          "max_ms": 13.13320899998871,
+          "samples_ms": [
+            8.564936999846395,
+            9.635100000195962,
+            13.13320899998871
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 9.66273700032616,
+          "p95_ms": 13.205155999912677,
+          "max_ms": 13.205155999912677,
+          "samples_ms": [
+            8.5912679996909,
+            9.66273700032616,
+            13.205155999912677
+          ]
+        }
+      },
+      "urgent_flush": {
+        "samples": 1,
+        "median_ms": 7.649257000139187,
+        "p95_ms": 7.649257000139187,
+        "max_ms": 7.649257000139187,
+        "samples_ms": [
+          7.649257000139187
+        ]
+      },
+      "headline_durably_buffered": true,
+      "activation_drained_queue": true,
+      "personal_archive_records": 26,
+      "muc_archive_records": 6,
+      "wire_body_deliveries": 27,
+      "status": "pass"
+    },
+    {
+      "mam_enabled": true,
+      "sm_enabled": true,
+      "rounds": 3,
+      "seeded_muc_archive_records": 10000,
+      "active": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 5.988029000036477,
+          "p95_ms": 12.748363000355312,
+          "max_ms": 12.748363000355312,
+          "samples_ms": [
+            4.862718999902427,
+            5.988029000036477,
+            12.748363000355312
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 12.630077000267192,
+          "p95_ms": 19.429251000019576,
+          "max_ms": 19.429251000019576,
+          "samples_ms": [
+            10.78411500020593,
+            12.630077000267192,
+            19.429251000019576
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 12.078300999746716,
+          "p95_ms": 150.8493799997268,
+          "max_ms": 150.8493799997268,
+          "samples_ms": [
+            8.165196999925683,
+            12.078300999746716,
+            150.8493799997268
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 12.104988999908528,
+          "p95_ms": 150.9020739999869,
+          "max_ms": 150.9020739999869,
+          "samples_ms": [
+            8.223369000006642,
+            12.104988999908528,
+            150.9020739999869
+          ]
+        }
+      },
+      "inactive": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 5.542480999793042,
+          "p95_ms": 6.975711999984924,
+          "max_ms": 6.975711999984924,
+          "samples_ms": [
+            5.515447000107088,
+            5.542480999793042,
+            6.975711999984924
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 11.341047000314575,
+          "p95_ms": 12.660073999995802,
+          "max_ms": 12.660073999995802,
+          "samples_ms": [
+            9.257749999960652,
+            11.341047000314575,
+            12.660073999995802
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 7.620324000072287,
+          "p95_ms": 15.230287000122189,
+          "max_ms": 15.230287000122189,
+          "samples_ms": [
+            4.938273000334448,
+            7.620324000072287,
+            15.230287000122189
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 7.682652000312373,
+          "p95_ms": 15.342540999881749,
+          "max_ms": 15.342540999881749,
+          "samples_ms": [
+            5.002620000141178,
+            7.682652000312373,
+            15.342540999881749
+          ]
+        }
+      },
+      "urgent_flush": {
+        "samples": 1,
+        "median_ms": 7.193640999958006,
+        "p95_ms": 7.193640999958006,
+        "max_ms": 7.193640999958006,
+        "samples_ms": [
+          7.193640999958006
+        ]
+      },
+      "headline_durably_buffered": true,
+      "activation_drained_queue": true,
+      "personal_archive_records": 26,
+      "muc_archive_records": 10006,
+      "wire_body_deliveries": 27,
+      "status": "pass"
+    }
+  ]
+}
+PASS: TLS conflict_resolve=default, live and hibernating SM resources
+PASS: TLS conflict_resolve=kick_old, live and hibernating SM resources
+PASS: TLS conflict_resolve=kick_new, live and hibernating SM resources
+PASS: TLS conflict_resolve=increment, live and hibernating SM resources
+PASS: TLS conflict_resolve=random, live and hibernating SM resources
+PASS: integrated WSS + HTTPS BOSH SASL/bind, CSI, inherited BOSH namespaces, roster, bidirectional chat, upload IQ/PUT/GET/reuse, graceful SM close and same-resource relogin under kick_new
+PASS: integrated WSS + HTTPS BOSH SASL/bind, CSI, inherited BOSH namespaces, roster, bidirectional chat, upload IQ/PUT/GET/reuse, graceful SM close and same-resource relogin under kick_new
+PASS: configured upload HTTP path with $host through integrated listener
+PASS: multiple upload hosts/shared-host paths, discovery, quotas, JWT isolation, persistence, transport composition and conflict validation
+PASS upload S3 protocol fixture: SigV4, multipart, abort, range, restart, expiry and backend isolation
+PASS upload migration: local -> S3 -> S3 -> local, hashes, original URLs/JWT/HEAD, lock, dry-run, fail-closed resume
+{
+  "total_load_wall_seconds": 12.023,
+  "requested_resources": 500,
+  "authenticated_bound_resources": 500,
+  "connection_setup_concurrency": 50,
+  "setup_wall_seconds": 2.841,
+  "setup_latency": {
+    "samples": 500,
+    "median_ms": 276.168,
+    "p95_ms": 355.866,
+    "max_ms": 391.729
+  },
+  "ping_rounds": 10,
+  "ping_round_trip": {
+    "samples": 5000,
+    "median_ms": 40.817,
+    "p95_ms": 75.964,
+    "max_ms": 81.172
+  },
+  "accounts": 100,
+  "message_rounds": 10,
+  "messages_sent": 5000,
+  "messages_received": 5000,
+  "message_batch_seconds": 5.932,
+  "metrics_before": {
+    "rss_kib": 8540,
+    "cpu_seconds": 0.01,
+    "fd_count": 11
+  },
+  "metrics_connected": {
+    "rss_kib": 27584,
+    "cpu_seconds": 2.94,
+    "fd_count": 511
+  },
+  "metrics_after_workload": {
+    "rss_kib": 28140,
+    "cpu_seconds": 21.39,
+    "fd_count": 511
+  },
+  "metrics_two_seconds_after_disconnect": {
+    "rss_kib": 28204,
+    "cpu_seconds": 21.58,
+    "fd_count": 11
+  },
+  "sampled_peak_rss_kib": 28204,
+  "fd_delta_after_disconnect": 0,
+  "failures": [],
+  "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+  "mam": {
+    "archive_files": 100,
+    "records": 10000,
+    "expected_records": 10000
+  }
+}
+MUC+SM load: connected (12.049s)
+MUC+SM load: joined (106.555s)
+MUC+SM load: fanout_verified (116.141s)
+MUC+SM load: before_sigkill (119.613s)
+{
+  "clients": 500,
+  "accounts": 100,
+  "rooms": 10,
+  "message_rounds": 3,
+  "concurrency": 20,
+  "binary": "/tmp/xmpp-durable-muc-load-ssixqqk9/rust-xmpp",
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "before": {
+    "rss_kib": 9516,
+    "cpu_seconds": 0.01,
+    "fd_count": 12
+  },
+  "connect_seconds": 12.048,
+  "connect_latency": {
+    "samples": 500,
+    "median_ms": 398.044,
+    "p95_ms": 1086.236,
+    "max_ms": 1403.7
+  },
+  "phase": "completed",
+  "status": "pass",
+  "elapsed_seconds": 128.38,
+  "join_seconds": 94.493,
+  "joined": {
+    "rss_kib": 41828,
+    "cpu_seconds": 55.61,
+    "fd_count": 513
+  },
+  "join_presence_deliveries": 25000,
+  "slots_joined": {
+    "count": 500,
+    "bytes": 309790
+  },
+  "message_seconds": 9.585,
+  "room_messages_sent": 30,
+  "room_messages_delivered": 1500,
+  "before_kill": {
+    "rss_kib": 41740,
+    "cpu_seconds": 62.6,
+    "fd_count": 512
+  },
+  "slots_before_kill": {
+    "count": 500,
+    "bytes": 514030
+  },
+  "restart_seconds": 7.557,
+  "resumed_resources": 10,
+  "replayed_pending_room_messages": 10,
+  "membership_groupchat_deliveries_after_resume": 10,
+  "after_resume": {
+    "rss_kib": 20896,
+    "cpu_seconds": 7.09,
+    "fd_count": 22
+  },
+  "slots_after_resume": {
+    "count": 500,
+    "bytes": 671070
+  },
+  "total_seconds": 128.38,
+  "peak_rss_kib": 41852
+}
+    Finished `test` profile [unoptimized] target(s) in 0.82s
+     Running tests/csi_native.rs (target/debug/deps/csi_native-0a12987691d5009c)
+
+running 1 test
+test native_prosody_csi_importance_matches ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/muc_native.rs (target/debug/deps/muc_native-a1b69d04e00e3ca2)
+
+running 1 test
+test actual_prosody_muc_mam_reads_rust_and_writes_native_archive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/muc_state_native.rs (target/debug/deps/muc_state_native-acf1660ee74f6bbb)
+
+running 1 test
+test actual_prosody_restores_rust_checkpoint_and_rust_reads_native_freeze ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/pep_item_order.rs (target/debug/deps/pep_item_order-f09d645d4a4abd6c)
+
+running 1 test
+test native_prosody_orders_retained_pep_items_newest_first ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.18s
+
+     Running tests/preauth_native.rs (target/debug/deps/preauth_native-6a70d29baa867634)
+
+running 1 test
+test native_prosody_invitation_tokens_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/pubsub_native.rs (target/debug/deps/pubsub_native-377562a81030ea91)
+
+running 1 test
+test native_prosody_pep_reads_rust_and_rust_reads_native ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/push.rs (target/debug/deps/push-0e45f6fc5bd835b8)
+
+running 1 test
+test native_push_body_lookup_excludes_extensions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+
+     Running tests/reference_prosody.rs (target/debug/deps/reference_prosody-c3ff35e56d4e86c3)
+
+running 1 test
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-1
+PROSODY_NATIVE_FINAL_OK SHA-1
+PROSODY_NATIVE_ROUNDTRIP_OK SHA-256
+PROSODY_NATIVE_FINAL_OK SHA-256
+test real_prosody_storage_and_auth_roundtrip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+
+    Finished `test` profile [unoptimized] target(s) in 0.23s
+     Running tests/federation_tls.rs (target/debug/deps/federation_tls-31cc4f1c98e0831d)
+
+running 1 test
+test native_prosody_tls_external_bidirectional ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.89s
+

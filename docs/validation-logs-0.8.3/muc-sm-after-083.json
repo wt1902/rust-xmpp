@@ -1,0 +1,62 @@
+{
+  "clients": 500,
+  "accounts": 100,
+  "rooms": 10,
+  "message_rounds": 3,
+  "concurrency": 20,
+  "binary": "/tmp/xmpp-durable-muc-load-ssixqqk9/rust-xmpp",
+  "binary_sha256": "8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210a3847a",
+  "before": {
+    "rss_kib": 9516,
+    "cpu_seconds": 0.01,
+    "fd_count": 12
+  },
+  "connect_seconds": 12.048,
+  "connect_latency": {
+    "samples": 500,
+    "median_ms": 398.044,
+    "p95_ms": 1086.236,
+    "max_ms": 1403.7
+  },
+  "phase": "completed",
+  "status": "pass",
+  "elapsed_seconds": 128.38,
+  "join_seconds": 94.493,
+  "joined": {
+    "rss_kib": 41828,
+    "cpu_seconds": 55.61,
+    "fd_count": 513
+  },
+  "join_presence_deliveries": 25000,
+  "slots_joined": {
+    "count": 500,
+    "bytes": 309790
+  },
+  "message_seconds": 9.585,
+  "room_messages_sent": 30,
+  "room_messages_delivered": 1500,
+  "before_kill": {
+    "rss_kib": 41740,
+    "cpu_seconds": 62.6,
+    "fd_count": 512
+  },
+  "slots_before_kill": {
+    "count": 500,
+    "bytes": 514030
+  },
+  "restart_seconds": 7.557,
+  "resumed_resources": 10,
+  "replayed_pending_room_messages": 10,
+  "membership_groupchat_deliveries_after_resume": 10,
+  "after_resume": {
+    "rss_kib": 20896,
+    "cpu_seconds": 7.09,
+    "fd_count": 22
+  },
+  "slots_after_resume": {
+    "count": 500,
+    "bytes": 671070
+  },
+  "total_seconds": 128.38,
+  "peak_rss_kib": 41852
+}
