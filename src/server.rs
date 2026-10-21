@@ -233,6 +233,19 @@ impl ConnectionLog {
             .and_then(|e| e.downcast_ref::<std::io::Error>())
             .map(|e| format!("{:?}", e.kind()))
             .unwrap_or_else(|| "none".into());
+        // TEMP-DIAG: sanitized, non-payload invariant label to locate a session
+        // fault (e.g. "stream management store failed", "retired stream
+        // transport", "missing stanza name"). Values come from the error chain
+        // only and never contain payload, tokens or passwords.
+        if let Err(e) = result {
+            let label = e
+                .chain()
+                .map(|x| x.to_string())
+                .find(|s| s.chars().all(|c| c.is_ascii() && !c.is_control()))
+                .unwrap_or_default();
+            let label: String = label.chars().take(160).collect();
+            self.event(Level::Debug, "session-error-label", &[("err", &label)]);
+        }
         self.event(
             if result.is_err() && !matches!(reason, "peer-disconnected" | "stream-complete") {
                 Level::Warn
