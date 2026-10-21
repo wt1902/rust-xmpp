@@ -182,4 +182,11 @@ in place»: каждый MAM-append падал и через `?` ронял sess
 доставке стала best-effort (storage-ошибка не роняет session и не роняет доставку;
 в лог — `mam-archive-skipped`), а `storage-checkpoint` получил ремонт непроверенного
 baseline: текущий синхронизированный native считается авторитетным и неприменимый
-журнал удаляется. Живой append остаётся fail-closed: журнал не удаляется молча.
+журнал удаляется.
+
+С 0.8.4-followup живой append больше НЕ fail-closed: `recover_redo` при первом же
+неприменимом baseline читает только header и сам удаляет журнал, принимая synced
+native (как Prosody), восстанавливая append на скорости Prosody без секундных
+`message-processing-slow` и прекращая `mam-archive-skipped`. Полная коррупция
+header-checksum или неполный baseline по-прежнему блокируют startup (fail-closed,
+инвариант 0.8.3) и не матчатся `is_untrusted_redo`.

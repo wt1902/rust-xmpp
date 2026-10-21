@@ -78,20 +78,30 @@ handoff, `.rredo` перестаёт совпадать со своим anchor. 
 Начиная с 0.8.4 MAM-архивация на трёх местах личной доставки (отправитель,
 получатель, входящая федерация) стала best-effort: при storage-ошибке исходная
 stanza всё равно маршрутизируется, обе сессии остаются живы, в лог пишется
-санитизированный `mam-archive-skipped`. Живой append остаётся fail-closed:
-непроверенный журнал не удаляется молча, а сохраняется для явного handoff.
+санитизированный `mam-archive-skipped`.
 
-Ремонт выполняется той же командой offline handoff:
+Критическое уточнение (0.8.4-followup): живой append больше НЕ fail-closed.
+`recover_redo` при первом же untrusted-baseline сбое читает только 96-байтовый
+header (ранняя anchor-проверка до чтения/валидации кадров) и сам зареТирует
+неподключённый журнал (`retire_redo`), принимая синхронизированный native как
+Prosody. Это устраняет O(журнал) чтение+checksum на каждый access при больших
+сломанных журналах (секунды `message-processing-slow`) и возвращает append на
+скорость Prosody. Полная коррупция header-checksum или неполный baseline по-прежнему
+блокируют startup (инвариант 0.8.3): они не матчатся `is_untrusted_redo` и остаются
+fail-closed, чтобы не потерять committed redo frames без цели.
+
+Ручной `storage-checkpoint` для этого больше не требуется; offline handoff
+остаётся идемпотентным способом штатного durable handoff перед сменой writer:
 
 ```bash
 rust-xmpp storage-checkpoint /etc/prosody/prosody.cfg.lua
 ```
 
-Теперь `prepare_rewrite` распознаёт непроверенный baseline (changed in place,
+`prepare_rewrite` по-прежнему распознаёт непроверенный baseline (changed in place,
 shorter, missing, journal exceeds bound), считает текущий durably-синхронизированный
-native авторитетным, синхронизирует его и удаляет неприменимый журнал. После этого
-MAM history снова читается, а новые append создадут свежий redo поверх нового
-baseline. Сверку совместимости native-формата см. в исходниках Prosody
+native авторитетным, синхронизирует его и удаляет неприменимый журнал. После
+MAM history читается, а новые append создадут свежий redo поверх нового baseline.
+Сверку совместимости native-формата см. в исходниках Prosody
 (`util/datamanager.lua` `list_append`/`list_store`, `plugins/mod_storage_internal.lua`
 `archive:append`): Prosody пишет `item(...)` и при полной перезаписи применяет
 atomic rename — что и меняет первые bytes baseline, оставляя Rust-журнал устаревшим.

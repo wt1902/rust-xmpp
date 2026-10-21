@@ -158,11 +158,15 @@ fn byte_limit_rotates_before_frame_count_limit() {
 }
 
 #[test]
-fn explicit_native_atomic_handoff_and_missing_baseline_fail_closed() {
+fn explicit_native_atomic_handoff_and_missing_baseline_never_drops_live_access() {
     let t = tempfile::tempdir().unwrap();
     append(t.path(), "old");
     let p = path(t.path());
     archive::checkpoint_all(t.path()).unwrap();
+    // An external writer replaces the native file in place (Prosody `list_store`
+    // rewrite), invalidating the committed redo baseline. On first access the
+    // untrusted journal is retired and the synced native is adopted as
+    // authoritative — exactly what Prosody sees (it has no redo sidecar).
     storage::atomic_write(
         &p,
         b"item({name='message';attr={};key='native';when=42});\n",
@@ -171,6 +175,7 @@ fn explicit_native_atomic_handoff_and_missing_baseline_fail_closed() {
     assert_eq!(ids(t.path()), ["native"]);
     append(t.path(), "rust");
     assert_eq!(ids(t.path()), ["native", "rust"]);
+    // A dirty, uncommitted native suffix is never surfaced.
     fs::OpenOptions::new()
         .append(true)
         .open(&p)
@@ -178,9 +183,15 @@ fn explicit_native_atomic_handoff_and_missing_baseline_fail_closed() {
         .write_all(b"item(bad uncommitted);")
         .unwrap();
     assert_eq!(ids(t.path()), ["native", "rust"]);
-    // The durable baseline cannot be reconstructed from suffix-only frames.
+    // Once the untrusted journal has been retired (native adopted as
+    // authoritative), externally removing the archive yields the empty history
+    // Prosody would return — never a panic or a hang.
     fs::remove_file(&p).unwrap();
-    assert!(archive::load(t.path(), "example.org", "alice").is_err());
+    assert!(
+        archive::load(t.path(), "example.org", "alice")
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]

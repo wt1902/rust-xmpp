@@ -319,13 +319,29 @@ storage-ошибка не роняет session и не роняет достав
 `offline_checkpoint_retires_...`, сетевой `tests/mam_broken_baseline_network.py`
 (перезапись baseline не роняет доставку; checkpoint возвращает MAM).
 
+Критическое уточнение 0.8.4-followup: **живой append больше НЕ fail-closed** — это
+и было корневой причиной seconds-уровневых `message-processing-slow` у Luma и
+непрерывных `mam-archive-skipped` на сервере пользователя. В `src/archive.rs`
+`recover_redo` теперь сам зареТирует неприменимый журнал при первом же сбое
+(ранняя проверка anchor по первым 96 байтам header до чтения кадров) и продолжит
+работу на синхронизированном native как Prosody, который вообще не хранит `.rredo`.
+Чтение сломанного журнала больше не стоит O(журнал) на каждый access: проверяется
+только header, неподключённый журнал удаляется один раз, последующие access быстры
+(см. `untrusted_redo_baseline_is_retired_once_and_recovers`). Полная коррупция
+header-checksum или неполный baseline по-прежнему блокируют startup (инвариант
+durability 0.8.3) — они НЕ матчатся `is_untrusted_redo` и остаются fail-closed.
+
 Сравнение с Prosody: `util/datamanager.lua` `list_append` пишет в конец, а
 `list_store` (перезапись) делает atomic rename — меняет первые bytes baseline;
 `plugins/mod_storage_internal.lua` `archive:append` для MUC/`key` и trim/delete
 делает `list_store` (полная перезапись). Prosody не понимает `.rredo` sidecar. Наш
 native `.list` сохраняет Prosody-совместимый `item(...)` формат.
 
-Операционный ремонт пользователя: остановить сервер, `./target/release/rust-xmpp
-storage-checkpoint CONFIG`, запустить снова. `--experimental` не снимать. Полная
+Операционный ремонт пользователя: с этим фиксом ручной `storage-checkpoint` для
+починки рассинхронизированного baseline больше не требуется — журнал
+зареТиров согласуется automatically при первом доступе, и append продолжает
+работу на скорости Prosody. Offline `storage-checkpoint CONFIG` остаётся
+доступным (и идемпотентным) для штатного durable handoff перед сменой writer.
+`--experimental` не снимать. Полная
 замена Prosody требует реального CI, внешней федерации, настоящих клиентов/push,
 deployment/UID/TLS, rollback и длительной нагрузки — см. COMPATIBILITY.md.
