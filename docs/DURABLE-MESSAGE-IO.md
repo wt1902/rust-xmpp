@@ -66,20 +66,50 @@ in-place append при активном redo считается незаверш
 Редактирование baseline in place без handoff не поддержано. Anchor проверяет
 последние 4 KiB baseline, не является checksum всего старого архива.
 
+## Внешний перезапись baseline: «archive redo baseline changed in place»
+
+Если какой-либо writer (бакап-восстановление, копия data_path, Prosody, старая
+версия сервера) перезаписал native `.list` поверх зафиксированного baseline без
+handoff, `.rredo` перестаёт совпадать со своим anchor. Каждый вызов
+`archive_for_user` возвращал `Err`, и через `?` ошибка роняла session
+(`connection-closed reason=protocol-or-transport-error`) — клиент (напр. Monal)
+реконнектился по кругу, сообщение не доставлялось.
+
+Начиная с 0.8.4 MAM-архивация на трёх местах личной доставки (отправитель,
+получатель, входящая федерация) стала best-effort: при storage-ошибке исходная
+stanza всё равно маршрутизируется, обе сессии остаются живы, в лог пишется
+санитизированный `mam-archive-skipped`. Живой append остаётся fail-closed:
+непроверенный журнал не удаляется молча, а сохраняется для явного handoff.
+
+Ремонт выполняется той же командой offline handoff:
+
+```bash
+rust-xmpp storage-checkpoint /etc/prosody/prosody.cfg.lua
+```
+
+Теперь `prepare_rewrite` распознаёт непроверенный baseline (changed in place,
+shorter, missing, journal exceeds bound), считает текущий durably-синхронизированный
+native авторитетным, синхронизирует его и удаляет неприменимый журнал. После этого
+MAM history снова читается, а новые append создадут свежий redo поверх нового
+baseline. Сверку совместимости native-формата см. в исходниках Prosody
+(`util/datamanager.lua` `list_append`/`list_store`, `plugins/mod_storage_internal.lua`
+`archive:append`): Prosody пишет `item(...)` и при полной перезаписи применяет
+atomic rename — что и меняет первые bytes baseline, оставляя Rust-журнал устаревшим.
+
 ## Диагностика
 
 `message-processing-slow` по-прежнему имеет threshold 250 мс, duration_ms, route
 и connection. Новые поля в integer milliseconds:
 
-|Поле|Измеряемый этап|
-|---|---|
-|pre_routing_ms|Работа до личного MAM; для MUC/ранних выходов — обработка до handled|
-|sender_mam_ms|Политика и архивирование отправителя|
-|recipient_mam_ms|Проверка аккаунта, политика и архивирование получателя|
-|delivery_ms|Маршрутизация, targets, mutex и transmit|
-|carbons_ms|Выбор ресурсов и отправка carbon|
-|offline_push_ms|Offline commit и подготовка/enqueue push|
-|handled_ms|Session mutex и durable mark_handled|
+| Поле             | Измеряемый этап                                                      |
+| ---------------- | -------------------------------------------------------------------- |
+| pre_routing_ms   | Работа до личного MAM; для MUC/ранних выходов — обработка до handled |
+| sender_mam_ms    | Политика и архивирование отправителя                                 |
+| recipient_mam_ms | Проверка аккаунта, политика и архивирование получателя               |
+| delivery_ms      | Маршрутизация, targets, mutex и transmit                             |
+| carbons_ms       | Выбор ресурсов и отправка carbon                                     |
+| offline_push_ms  | Offline commit и подготовка/enqueue push                             |
+| handled_ms       | Session mutex и durable mark_handled                                 |
 
 Неисполненные этапы равны 0. target_count — выбранные локальные ресурсы,
 carbon_count — успешные carbon transmit. Это серверные этапы, не время

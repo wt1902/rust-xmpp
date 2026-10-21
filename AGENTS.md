@@ -235,7 +235,7 @@ bind2_archive_latency_network.py, archive_edges.rs, session_routing_isolation.rs
 После изменений обновляйте точные границы совместимости и результаты проверки.
 Не перезаписывайте исторические отчёты как будто они относятся к новой сборке.
 В передаваемый ZIP включайте AGENTS.md, workflow, vendor reference, исходники,
-документацию и scripts; исключайте target, demo data, bin, .git, __pycache__, pyc
+документацию и scripts; исключайте target, demo data, bin, .git, **pycache**, pyc
 и секреты. Сохраняйте executable bits shell scripts и проверяйте содержимое ZIP.
 
 ## Durable message IO 0.8.3
@@ -298,3 +298,34 @@ Final binary SHA-256: 8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210
 Подробные samples/границы — docs/VALIDATION-0.8.3.md. Checksum и JSON syntax всех frames
 проверяются при SM replay, но Record создаётся только для последнего
 snapshot. Recovery WAL sync до публикации обязателен; EIO fixture защищает это.
+
+## Monal MAM baseline 0.8.4
+
+Баг: «archive redo baseline changed in place» на живом сервере — внешняя
+перезапись native `.list` поверх зафиксированного redo-baseline (бакап/копия
+data_path/Prosody/старая версия) делала каждый `archive_for_user` Err, `?` ронял
+session, клиент (Monal-iOS) реконнектился и не доставлял сообщение. Причина не в
+обычном append — baseline ломает только перезапись первых `base` байт в обход
+`.rredo`; наш Rust-append пишет только в конец.
+
+Фикс (commit 1000053): 1) MAM-архивация на личной доставке (отправитель,
+получатель, входящая федерация) стала best-effort `archive_message_best_effort` —
+storage-ошибка не роняет session и не роняет доставку, в лог `mam-archive-skipped`
+(санитизированный `sanitized_label`, без payload); 2) offline `storage-checkpoint`
+теперь ремонтирует непроверенный baseline: `prepare_rewrite` через
+`is_untrusted_redo` считает текущий синхронизированный native авторитетным и
+удаляет неприменимый журнал (`retire_redo`). Живой append остаётся fail-closed.
+Новые tests: `archive.rs` `runtime_append_fails_closed_...`/
+`offline_checkpoint_retires_...`, сетевой `tests/mam_broken_baseline_network.py`
+(перезапись baseline не роняет доставку; checkpoint возвращает MAM).
+
+Сравнение с Prosody: `util/datamanager.lua` `list_append` пишет в конец, а
+`list_store` (перезапись) делает atomic rename — меняет первые bytes baseline;
+`plugins/mod_storage_internal.lua` `archive:append` для MUC/`key` и trim/delete
+делает `list_store` (полная перезапись). Prosody не понимает `.rredo` sidecar. Наш
+native `.list` сохраняет Prosody-совместимый `item(...)` формат.
+
+Операционный ремонт пользователя: остановить сервер, `./target/release/rust-xmpp
+storage-checkpoint CONFIG`, запустить снова. `--experimental` не снимать. Полная
+замена Prosody требует реального CI, внешней федерации, настоящих клиентов/push,
+deployment/UID/TLS, rollback и длительной нагрузки — см. COMPATIBILITY.md.
