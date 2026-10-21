@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::{Result, anyhow, bail};
 use std::{
-    io::{BufRead, BufReader, Read, Write},
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::Path,
     sync::{Arc, Mutex, OnceLock, Weak},
 };
@@ -212,46 +212,23 @@ fn scan_unlocked<F: FnMut(Entry) -> Result<()>>(
     let mut reader = BufReader::new(file);
     let mut line = Vec::new();
     let mut record = Vec::new();
-    let lua = crate::lua::bounded_vm().map_err(|e| anyhow!(e.to_string()))?;
-    let env = lua.create_table().map_err(|e| anyhow!(e.to_string()))?;
+    let decoder = RecordDecoder::new()?;
     let mut decode = |data: &[u8]| -> Result<()> {
-        if data.iter().all(u8::is_ascii_whitespace) {
-            return Ok(());
+        if let Some(entry) = decoder.decode(data)? {
+            visit(entry)?;
         }
-        let count = std::rc::Rc::new(std::cell::Cell::new(0));
-        lua.set_hook(
-            mlua::HookTriggers::new().every_nth_instruction(1000),
-            move |_, _| {
-                count.set(count.get() + 1);
-                if count.get() > 2000 {
-                    return Err(mlua::Error::runtime("archive record instruction limit"));
-                }
-                Ok(mlua::VmState::Continue)
-            },
-        )
-        .map_err(|e| anyhow!(e.to_string()))?;
-        let mut chunk = b"local function item(v) return v end; return ".to_vec();
-        chunk.extend(data);
-        let value = lua
-            .load(&chunk)
-            .set_mode(mlua::chunk::ChunkMode::Text)
-            .set_environment(env.clone())
-            .eval::<mlua::Value>()
-            .map_err(|e| anyhow!(e.to_string()))?;
-        visit(decode_entry(&storage::from_lua(value)?)?)?;
-        lua.gc_collect().map_err(|e| anyhow!(e.to_string()))?;
         Ok(())
     };
     loop {
         line.clear();
         let n = (&mut reader)
-            .take(16 * 1024 * 1024 + 1)
+            .take(MAX_RECORD_BYTES as u64 + 1)
             .read_until(b'\n', &mut line)?;
         if n == 0 {
             break;
         }
         anyhow::ensure!(
-            line.len() <= 16 * 1024 * 1024,
+            line.len() <= MAX_RECORD_BYTES,
             "archive record line exceeds 16 MiB"
         );
         if line.starts_with(b"item") && !record.is_empty() {
@@ -260,11 +237,147 @@ fn scan_unlocked<F: FnMut(Entry) -> Result<()>>(
         }
         record.extend_from_slice(&line);
         anyhow::ensure!(
-            record.len() <= 16 * 1024 * 1024,
+            record.len() <= MAX_RECORD_BYTES,
             "archive record exceeds 16 MiB"
         );
     }
     decode(&record)
+}
+const MAX_RECORD_BYTES: usize = 16 * 1024 * 1024;
+
+/// One bounded Lua sandbox shared by the scan and endpoint readers.
+struct RecordDecoder {
+    lua: mlua::Lua,
+    env: mlua::Table,
+}
+impl RecordDecoder {
+    fn new() -> Result<Self> {
+        let lua = crate::lua::bounded_vm().map_err(|e| anyhow!(e.to_string()))?;
+        let env = lua.create_table().map_err(|e| anyhow!(e.to_string()))?;
+        Ok(Self { lua, env })
+    }
+    fn decode(&self, data: &[u8]) -> Result<Option<Entry>> {
+        anyhow::ensure!(
+            data.len() <= MAX_RECORD_BYTES,
+            "archive record exceeds 16 MiB"
+        );
+        if data.iter().all(u8::is_ascii_whitespace) {
+            return Ok(None);
+        }
+        let count = std::rc::Rc::new(std::cell::Cell::new(0));
+        self.lua
+            .set_hook(
+                mlua::HookTriggers::new().every_nth_instruction(1000),
+                move |_, _| {
+                    count.set(count.get() + 1);
+                    if count.get() > 2000 {
+                        return Err(mlua::Error::runtime("archive record instruction limit"));
+                    }
+                    Ok(mlua::VmState::Continue)
+                },
+            )
+            .map_err(|e| anyhow!(e.to_string()))?;
+        let mut chunk = b"local function item(v) return v end; return ".to_vec();
+        chunk.extend(data);
+        let value = self
+            .lua
+            .load(&chunk)
+            .set_mode(mlua::chunk::ChunkMode::Text)
+            .set_environment(self.env.clone())
+            .eval::<mlua::Value>()
+            .map_err(|e| anyhow!(e.to_string()))?;
+        let entry = decode_entry(&storage::from_lua(value)?)?;
+        self.lua.gc_collect().map_err(|e| anyhow!(e.to_string()))?;
+        Ok(Some(entry))
+    }
+}
+
+/// Read just the first and last native records of a consistent archive snapshot.
+/// This metadata operation deliberately does not validate intervening records.
+/// Neither a missing nor a stale native binary index causes a history scan.
+pub fn edges_store(
+    root: &Path,
+    host: &str,
+    user: Option<&str>,
+    store: &str,
+) -> Result<Option<(Entry, Entry)>> {
+    let _life = LIFECYCLE
+        .read()
+        .map_err(|_| anyhow!("archive lifecycle lock poisoned"))?;
+    let lock = archive_lock(root, host, user, store)?;
+    let _guard = lock.lock().map_err(|_| anyhow!("archive lock poisoned"))?;
+    let path = storage::path(root, host, user, store).with_extension("list");
+    recover_append(&path)?;
+    let mut file = match std::fs::File::open(&path) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e.into()),
+    };
+    let decoder = RecordDecoder::new()?;
+    let first = match first_record(&mut BufReader::new(&mut file), &decoder)? {
+        Some(entry) => entry,
+        None => return Ok(None),
+    };
+    let length = file.metadata()?.len();
+    let mut window = 8192u64.min(length);
+    loop {
+        let start = length - window;
+        // Include one preceding byte to distinguish a real line boundary from
+        // an `item` prefix coincidentally at the beginning of the seek window.
+        let read_start = start.saturating_sub(1);
+        file.seek(SeekFrom::Start(read_start))?;
+        let mut tail = vec![0; (length - read_start) as usize];
+        file.read_exact(&mut tail)?;
+        let boundary = (0..tail.len()).rev().find(|&i| {
+            (i > 0 && tail[i - 1] == b'\n' || i == 0 && read_start == 0)
+                && tail[i..].starts_with(b"item")
+        });
+        if let Some(boundary) = boundary {
+            let last = decoder
+                .decode(&tail[boundary..])?
+                .ok_or_else(|| anyhow!("empty archive endpoint"))?;
+            return Ok(Some((first, last)));
+        }
+        anyhow::ensure!(
+            start > 0 && window < MAX_RECORD_BYTES as u64,
+            "archive last record exceeds 16 MiB or has no native item boundary"
+        );
+        window = (window * 2).min(MAX_RECORD_BYTES as u64).min(length);
+    }
+}
+
+fn first_record<R: BufRead>(reader: &mut R, decoder: &RecordDecoder) -> Result<Option<Entry>> {
+    let mut record = Vec::new();
+    loop {
+        // Inspect only the next line's marker before reading its contents: the
+        // second record may be enormous or malformed and is irrelevant here.
+        let mut prefix = Vec::new();
+        let n = (&mut *reader).take(4).read_until(b'\n', &mut prefix)?;
+        if n == 0 {
+            return decoder.decode(&record);
+        }
+        if prefix.starts_with(b"item") && !record.is_empty() {
+            if let Some(entry) = decoder.decode(&record)? {
+                return Ok(Some(entry));
+            }
+            record.clear();
+        }
+        record.extend_from_slice(&prefix);
+        anyhow::ensure!(
+            record.len() <= MAX_RECORD_BYTES,
+            "archive record exceeds 16 MiB"
+        );
+        if !prefix.ends_with(b"\n") {
+            let remaining = (MAX_RECORD_BYTES - record.len() + 1) as u64;
+            (&mut *reader)
+                .take(remaining)
+                .read_until(b'\n', &mut record)?;
+            anyhow::ensure!(
+                record.len() <= MAX_RECORD_BYTES,
+                "archive record exceeds 16 MiB"
+            );
+        }
+    }
 }
 fn load_unlocked(root: &Path, host: &str, user: Option<&str>, store: &str) -> Result<Vec<Entry>> {
     let mut out = vec![];

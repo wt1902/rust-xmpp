@@ -115,6 +115,10 @@ impl Session {
         ensure!(!self.closed, "session closed");
         let n = h.wrapping_sub(self.acked) as usize;
         ensure!(n <= self.pending.len(), "invalid stream acknowledgement");
+        if n == 0 {
+            self.ack_requested = false;
+            return Ok(());
+        }
         let previous = self.clone();
         self.pending.drain(..n);
         self.acked = h;
@@ -345,13 +349,29 @@ impl Hub {
     pub fn all(&self) -> Vec<SharedSession> {
         self.sessions.lock().unwrap().values().cloned().collect()
     }
+    /// Filter immutable resource keys before taking any per-session lock. A slow
+    /// client from another account must not block this account's routing/carbons.
+    pub fn for_owners(&self, owners: &[&str]) -> Vec<SharedSession> {
+        self.sessions
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(jid, _)| owners.contains(&bare(jid)))
+            .map(|(_, session)| session.clone())
+            .collect()
+    }
     pub fn deliver(&self, to: &str, xml: &str) -> usize {
         let roster_push = roxmltree::Document::parse(xml).ok().is_some_and(|d| {
             d.root_element()
                 .attribute("id")
                 .is_some_and(|id| id.starts_with("roster-"))
         });
-        self.all()
+        let targets = if to.contains('/') {
+            self.get(to).into_iter().collect()
+        } else {
+            self.for_owners(&[to])
+        };
+        targets
             .into_iter()
             .filter(|s| {
                 let mut s = s.lock().unwrap();
@@ -383,7 +403,7 @@ impl Hub {
         let bare = to.split_once('/').map(|(bare, _)| bare).unwrap_or(to);
         let mut max = None;
         let mut out = vec![];
-        for s in self.all() {
+        for s in self.for_owners(&[bare]) {
             let p = {
                 let state = s.lock().unwrap();
                 if state.owner != bare || !state.available || state.priority < 0 {

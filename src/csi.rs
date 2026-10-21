@@ -1,6 +1,17 @@
 //! Write buffering matching the supplied Prosody mod_csi_simple importance policy.
 use crate::{protocol, wire::escape};
 use std::time::{Duration, Instant};
+/// Runtime defaults: visible encrypted chat and delivery/read confirmation must
+/// not remain asleep merely because a client omitted a fallback body or EME.
+/// An explicit csi_important_payloads list replaces these defaults.
+pub const DEFAULT_IMPORTANT_PAYLOADS: &[&str] = &[
+    "{eu.siacs.conversations.axolotl}encrypted",
+    "{urn:xmpp:omemo:2}encrypted",
+    "{urn:xmpp:receipts}received",
+    "{urn:xmpp:chat-markers:0}received",
+    "{urn:xmpp:chat-markers:0}displayed",
+    "{urn:xmpp:chat-markers:0}acknowledged",
+];
 #[derive(Clone, Debug, Default)]
 pub struct Buffer {
     inactive: bool,
@@ -18,6 +29,37 @@ pub(crate) struct DurableBuffer {
     limit: usize,
     resume_delay_ms: u64,
     important_payloads: Vec<String>,
+}
+/// Output awaiting persistence. Rollback reuses the drained queue without cloning it.
+pub(crate) struct PendingOutput {
+    output: Vec<String>,
+    previous: Option<QueueChange>,
+}
+struct QueueChange {
+    queued: usize,
+    bytes: usize,
+    flushing_until: Option<Instant>,
+    appended: bool,
+}
+impl PendingOutput {
+    pub(crate) fn durable_changed(&self) -> bool {
+        self.previous.is_some()
+    }
+    pub(crate) fn commit(self) -> Vec<String> {
+        self.output
+    }
+    pub(crate) fn rollback(mut self, buffer: &mut Buffer) {
+        if let Some(previous) = self.previous {
+            if previous.appended {
+                buffer.queue.pop();
+            } else {
+                self.output.truncate(previous.queued);
+                buffer.queue = self.output;
+            }
+            buffer.bytes = previous.bytes;
+            buffer.flushing_until = previous.flushing_until;
+        }
+    }
 }
 impl Buffer {
     pub(crate) fn durable(&self) -> DurableBuffer {
@@ -63,17 +105,47 @@ impl Buffer {
     }
     /// Client input flushes held output without declaring the client active.
     pub fn activity(&mut self, now: Instant) -> Vec<String> {
+        self.pending_activity(now).commit()
+    }
+    pub(crate) fn pending_activity(&mut self, now: Instant) -> PendingOutput {
         if self.inactive && !self.queue.is_empty() {
+            let previous = self.queue_change(false);
             self.flushing_until = Some(now + self.resume_delay);
-            self.drain()
+            PendingOutput {
+                output: self.drain(),
+                previous: Some(previous),
+            }
         } else {
-            Vec::new()
+            PendingOutput {
+                output: Vec::new(),
+                previous: None,
+            }
         }
     }
     pub fn output(&mut self, xml: String, owner: &str, now: Instant) -> Vec<String> {
-        if !self.inactive || self.flushing_until.is_some_and(|until| now < until) {
-            return vec![xml];
+        self.pending_output(xml, owner, now).commit()
+    }
+    fn queue_change(&self, appended: bool) -> QueueChange {
+        QueueChange {
+            queued: self.queue.len(),
+            bytes: self.bytes,
+            flushing_until: self.flushing_until,
+            appended,
         }
+    }
+    pub(crate) fn pending_output(
+        &mut self,
+        xml: String,
+        owner: &str,
+        now: Instant,
+    ) -> PendingOutput {
+        if !self.inactive || self.flushing_until.is_some_and(|until| now < until) {
+            return PendingOutput {
+                output: vec![xml],
+                previous: None,
+            };
+        }
+        let mut previous = self.queue_change(false);
         self.flushing_until = None;
         if self.queue.len() >= self.limit.max(1)
             || self.bytes.saturating_add(xml.len()) > 4 * 1024 * 1024
@@ -82,12 +154,19 @@ impl Buffer {
             self.flushing_until = Some(now + self.resume_delay);
             let mut output = self.drain();
             output.push(xml);
-            output
+            PendingOutput {
+                output,
+                previous: (previous.queued > 0).then_some(previous),
+            }
         } else {
+            previous.appended = true;
             let xml = delayed(&xml, owner);
             self.bytes += xml.len();
             self.queue.push(xml);
-            Vec::new()
+            PendingOutput {
+                output: Vec::new(),
+                previous: Some(previous),
+            }
         }
     }
 }
@@ -198,4 +277,83 @@ fn delayed(xml: &str, owner: &str) -> String {
         ));
     }
     output
+}
+
+#[cfg(test)]
+mod checkpoint_tests {
+    use super::*;
+
+    #[test]
+    fn only_queue_changes_require_a_checkpoint() {
+        let now = Instant::now();
+        let mut buffer = Buffer::default();
+        buffer.configure(2, Duration::from_secs(5), vec![]);
+        assert!(!buffer.pending_activity(now).durable_changed());
+        assert!(
+            !buffer
+                .pending_output("<presence/>".into(), "a@example", now)
+                .durable_changed()
+        );
+        buffer.set_inactive(true);
+        // An important stanza starts the transient grace period but changes no durable queue.
+        let output = buffer.pending_output(
+            "<message><body>hi</body></message>".into(),
+            "a@example",
+            now,
+        );
+        assert!(!output.durable_changed());
+        assert_eq!(output.commit().len(), 1);
+        assert!(
+            !buffer
+                .pending_output("<presence/>".into(), "a@example", now)
+                .durable_changed()
+        );
+        let later = now + Duration::from_secs(6);
+        let output = buffer.pending_output("<presence/>".into(), "a@example", later);
+        assert!(output.durable_changed());
+        assert!(output.commit().is_empty());
+        let output = buffer.pending_activity(later);
+        assert!(output.durable_changed());
+        assert_eq!(output.commit().len(), 1);
+        assert!(!buffer.pending_activity(later).durable_changed());
+    }
+
+    #[test]
+    fn failed_queue_checkpoints_restore_append_and_drain_without_copying_queue() {
+        let now = Instant::now();
+        let mut buffer = Buffer::default();
+        buffer.configure(2, Duration::from_secs(5), vec![]);
+        buffer.set_inactive(true);
+        buffer.output("<presence id='held'/>".into(), "a@example", now);
+        let before = serde_json::to_value(buffer.durable()).unwrap();
+        let bytes = buffer.bytes;
+        let until = buffer.flushing_until;
+        for operation in 0..3 {
+            let output = match operation {
+                0 => buffer.pending_output("<presence id='new'/>".into(), "a@example", now),
+                1 => buffer.pending_output(
+                    "<message><body>hi</body></message>".into(),
+                    "a@example",
+                    now,
+                ),
+                _ => buffer.pending_activity(now),
+            };
+            assert!(output.durable_changed());
+            output.rollback(&mut buffer);
+            assert_eq!(serde_json::to_value(buffer.durable()).unwrap(), before);
+            assert_eq!(buffer.bytes, bytes);
+            assert_eq!(buffer.flushing_until, until);
+        }
+        // A successful retry still sends the held stanza before the new message.
+        let output = buffer
+            .pending_output(
+                "<message><body>hi</body></message>".into(),
+                "a@example",
+                now,
+            )
+            .commit();
+        assert_eq!(output.len(), 2);
+        assert!(output[0].contains("id='held'"));
+        assert!(output[1].contains("<body>hi</body>"));
+    }
 }

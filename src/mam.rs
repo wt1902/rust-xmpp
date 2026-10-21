@@ -274,16 +274,12 @@ pub fn handle_archive_query_with_options(
     let (iq, q) = request;
     let typ = iq.attribute("type").unwrap_or("");
     if q.tag_name().name() == "metadata" && typ == "get" {
-        let mut first = None;
-        let mut last = None;
-        archive::scan_store(root, host, user, store, |e| {
-            if first.is_none() {
-                first = Some((e.id.clone(), e.when));
-            }
-            last = Some((e.id, e.when));
-            Ok(())
-        })
-        .context("MAM archive read failed")?;
+        let edges =
+            archive::edges_store(root, host, user, store).context("MAM archive read failed")?;
+        let (first, last) = match edges {
+            Some((first, last)) => (Some((first.id, first.when)), Some((last.id, last.when))),
+            None => (None, None),
+        };
         let mut payload = format!("<metadata xmlns='{NS}'>");
         if let Some((id, when)) = first {
             payload.push_str(&format!(

@@ -1,4 +1,4 @@
-# Rust XMPP 0.8.0
+# Rust XMPP 0.8.2
 
 Сервер на Rust, разрабатываемый для замены **Prosody 13.0 nightly 100,
 cafd74b9c5ea** с предоставленными модулями. Читает существующий Lua-конфиг,
@@ -238,3 +238,16 @@ recovery Rust служит собственный журнал. Перед от�
 Полные тесты, Linux binary artifact и Docker push после проверок:
 [настройка workflow](docs/GITHUB-ACTIONS.md). Registry и credentials задаются
 через GitHub Actions variables/secrets.
+
+## Задержка сообщений в0.8.1
+
+Устранены полный проход по MUC-архиву на каждом сообщении, повторные записи
+неизменённых native-файлов и no-op CSI checkpoints. Проверенный сценарий
+с100000 MAM-записей: median MUC delivery2.5с→4.7мс на loopback.
+[Причины, измерения и границы](docs/MESSAGE-LATENCY.md).
+
+## Личные сообщения в0.8.2
+
+Push routing больше не блокирует отправителя/SM ACK; CSI defaults немедленно
+передают bodyless OMEMO и receipts. Bind2/MAM metadata не сканируют всю историю.
+[Причины, тесты и конфигурация](docs/PERSONAL-MESSAGE-LATENCY.md).

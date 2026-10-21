@@ -1,0 +1,498 @@
+{
+  "binary_sha256": "c57757476f2019c60ac877e4a66364b17283218e3cc244ae3f29cde1d3be2977",
+  "scope": "loopback STARTTLS; fixture only; forced CSI dwell explicitly separated",
+  "cases": [
+    {
+      "active": {
+        "delivery": {
+          "samples": 3,
+          "median_ms": 4.817936999870653,
+          "p95_ms": 16.517306000196186,
+          "max_ms": 16.517306000196186,
+          "samples_ms": [
+            4.748034999920492,
+            4.817936999870653,
+            16.517306000196186
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 3,
+          "median_ms": 4.7456789998250315,
+          "p95_ms": 16.426100000217048,
+          "max_ms": 16.426100000217048,
+          "samples_ms": [
+            4.626912000048833,
+            4.7456789998250315,
+            16.426100000217048
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 3,
+          "median_ms": 10.344463999899745,
+          "p95_ms": 21.304692000057912,
+          "max_ms": 21.304692000057912,
+          "samples_ms": [
+            9.215212999833966,
+            10.344463999899745,
+            21.304692000057912
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 3,
+          "median_ms": 4.755211999963649,
+          "p95_ms": 5.568677999917782,
+          "max_ms": 5.568677999917782,
+          "samples_ms": [
+            4.3716870000025665,
+            4.755211999963649,
+            5.568677999917782
+          ]
+        }
+      },
+      "inactive": {
+        "delivery": {
+          "samples": 3,
+          "median_ms": 4.89018300004318,
+          "p95_ms": 5.018079000137732,
+          "max_ms": 5.018079000137732,
+          "samples_ms": [
+            4.7031279998464015,
+            4.89018300004318,
+            5.018079000137732
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 3,
+          "median_ms": 4.817049000166662,
+          "p95_ms": 5.079797999997027,
+          "max_ms": 5.079797999997027,
+          "samples_ms": [
+            4.60740799985615,
+            4.817049000166662,
+            5.079797999997027
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 3,
+          "median_ms": 9.543050000047515,
+          "p95_ms": 10.455423000166775,
+          "max_ms": 10.455423000166775,
+          "samples_ms": [
+            9.271581000120932,
+            9.543050000047515,
+            10.455423000166775
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 3,
+          "median_ms": 4.79821100020672,
+          "p95_ms": 5.540141000210497,
+          "max_ms": 5.540141000210497,
+          "samples_ms": [
+            4.134176999968986,
+            4.79821100020672,
+            5.540141000210497
+          ]
+        }
+      },
+      "receipt_only-active": {
+        "delivery_ms": 5.081753000013123,
+        "sender_sm_handled_ms": 4.81151700000737,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "receipt_only-inactive": {
+        "delivery_ms": 2010.5149120001897,
+        "sender_sm_handled_ms": 4.923649000147634,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 1.6535839999960444
+      },
+      "omemo_legacy_only-active": {
+        "delivery_ms": 2.6542460000200663,
+        "sender_sm_handled_ms": 2.3668179999276617,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_legacy_only-inactive": {
+        "delivery_ms": 2012.9395249998652,
+        "sender_sm_handled_ms": 2.5684999998247804,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 3.8570599999729893
+      },
+      "omemo_2_only-active": {
+        "delivery_ms": 2.803322000090702,
+        "sender_sm_handled_ms": 2.5052290000076027,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_2_only-inactive": {
+        "delivery_ms": 2006.170849,
+        "sender_sm_handled_ms": 2.1322459999737475,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 1.5037350001421146
+      },
+      "omemo_with_eme-active": {
+        "delivery_ms": 5.247026000006372,
+        "sender_sm_handled_ms": 4.908949999844481,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_with_eme-inactive": {
+        "delivery_ms": 6.537689000197133,
+        "sender_sm_handled_ms": 6.264521000048262,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "sm_backlog": {
+        "seeded_messages": 500,
+        "durable_pending_before_sample": 500,
+        "delivery_ms": 4.346552000015436,
+        "sender_sm_handled_ms": 4.268297999942661
+      },
+      "status": "pass",
+      "final_personal_mam_records_per_user": [
+        100517,
+        100517
+      ],
+      "roster_contacts_per_user": 0,
+      "seeded_personal_mam_records_per_user": 100000,
+      "archive_policy": "always"
+    },
+    {
+      "active": {
+        "delivery": {
+          "samples": 3,
+          "median_ms": 19.816834000039307,
+          "p95_ms": 34.282772000096884,
+          "max_ms": 34.282772000096884,
+          "samples_ms": [
+            19.449956000016755,
+            19.816834000039307,
+            34.282772000096884
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 3,
+          "median_ms": 19.71937500002241,
+          "p95_ms": 34.19807699992816,
+          "max_ms": 34.19807699992816,
+          "samples_ms": [
+            19.322317000160183,
+            19.71937500002241,
+            34.19807699992816
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 3,
+          "median_ms": 39.9533730001167,
+          "p95_ms": 54.972926000118605,
+          "max_ms": 54.972926000118605,
+          "samples_ms": [
+            39.557586999990235,
+            39.9533730001167,
+            54.972926000118605
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 3,
+          "median_ms": 20.108162000042284,
+          "p95_ms": 20.66232500010301,
+          "max_ms": 20.66232500010301,
+          "samples_ms": [
+            20.07690499999626,
+            20.108162000042284,
+            20.66232500010301
+          ]
+        }
+      },
+      "inactive": {
+        "delivery": {
+          "samples": 3,
+          "median_ms": 21.33975200013083,
+          "p95_ms": 22.656845000028625,
+          "max_ms": 22.656845000028625,
+          "samples_ms": [
+            19.565955999951257,
+            21.33975200013083,
+            22.656845000028625
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 3,
+          "median_ms": 21.24135799999749,
+          "p95_ms": 22.574971000040023,
+          "max_ms": 22.574971000040023,
+          "samples_ms": [
+            19.466118999844184,
+            21.24135799999749,
+            22.574971000040023
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 3,
+          "median_ms": 42.33967000004668,
+          "p95_ms": 42.759643999943364,
+          "max_ms": 42.759643999943364,
+          "samples_ms": [
+            39.931753000018944,
+            42.33967000004668,
+            42.759643999943364
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 3,
+          "median_ms": 20.32766500019534,
+          "p95_ms": 21.3887639999939,
+          "max_ms": 21.3887639999939,
+          "samples_ms": [
+            19.65616699999373,
+            20.32766500019534,
+            21.3887639999939
+          ]
+        }
+      },
+      "receipt_only-active": {
+        "delivery_ms": 20.706908999954976,
+        "sender_sm_handled_ms": 20.764115000019956,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "receipt_only-inactive": {
+        "delivery_ms": 2024.603683000123,
+        "sender_sm_handled_ms": 19.517362000215144,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 2.5455170000441285
+      },
+      "omemo_legacy_only-active": {
+        "delivery_ms": 2.6721889998952975,
+        "sender_sm_handled_ms": 2.4056919999111415,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_legacy_only-inactive": {
+        "delivery_ms": 2008.3468199998151,
+        "sender_sm_handled_ms": 2.188200999853507,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 2.0773089997874195
+      },
+      "omemo_2_only-active": {
+        "delivery_ms": 3.2299929998771404,
+        "sender_sm_handled_ms": 2.707185999952344,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_2_only-inactive": {
+        "delivery_ms": 2008.4954139999809,
+        "sender_sm_handled_ms": 2.423592000013741,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 2.214231000152722
+      },
+      "omemo_with_eme-active": {
+        "delivery_ms": 22.333799999842086,
+        "sender_sm_handled_ms": 22.02385900000081,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_with_eme-inactive": {
+        "delivery_ms": 36.01745500009201,
+        "sender_sm_handled_ms": 35.61825799988583,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "sm_backlog": {
+        "seeded_messages": 500,
+        "durable_pending_before_sample": 500,
+        "delivery_ms": 18.815608000068096,
+        "sender_sm_handled_ms": 18.779131000201232
+      },
+      "status": "pass",
+      "final_personal_mam_records_per_user": [
+        100517,
+        100517
+      ],
+      "roster_contacts_per_user": 5000,
+      "seeded_personal_mam_records_per_user": 100000,
+      "archive_policy": "roster"
+    },
+    {
+      "active": {
+        "delivery": {
+          "samples": 3,
+          "median_ms": 36.994213000070886,
+          "p95_ms": 46.157045999962065,
+          "max_ms": 46.157045999962065,
+          "samples_ms": [
+            32.354088000147385,
+            36.994213000070886,
+            46.157045999962065
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 3,
+          "median_ms": 37.03395700017609,
+          "p95_ms": 46.22371799996472,
+          "max_ms": 46.22371799996472,
+          "samples_ms": [
+            32.41653200007022,
+            37.03395700017609,
+            46.22371799996472
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 3,
+          "median_ms": 70.08860200016898,
+          "p95_ms": 79.21533199987607,
+          "max_ms": 79.21533199987607,
+          "samples_ms": [
+            64.34645700005603,
+            70.08860200016898,
+            79.21533199987607
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 3,
+          "median_ms": 32.9383449998204,
+          "p95_ms": 33.00209500002893,
+          "max_ms": 33.00209500002893,
+          "samples_ms": [
+            31.880290000117384,
+            32.9383449998204,
+            33.00209500002893
+          ]
+        }
+      },
+      "inactive": {
+        "delivery": {
+          "samples": 3,
+          "median_ms": 36.834342000020115,
+          "p95_ms": 39.296434999869234,
+          "max_ms": 39.296434999869234,
+          "samples_ms": [
+            32.84419600004185,
+            36.834342000020115,
+            39.296434999869234
+          ]
+        },
+        "sender_sm_handled": {
+          "samples": 3,
+          "median_ms": 36.63234700002249,
+          "p95_ms": 39.167316999964896,
+          "max_ms": 39.167316999964896,
+          "samples_ms": [
+            32.901452000032805,
+            36.63234700002249,
+            39.167316999964896
+          ]
+        },
+        "client_receipt_end_to_end": {
+          "samples": 3,
+          "median_ms": 74.8365649999414,
+          "p95_ms": 82.56400300001587,
+          "max_ms": 82.56400300001587,
+          "samples_ms": [
+            65.61269799999536,
+            74.8365649999414,
+            82.56400300001587
+          ]
+        },
+        "receipt_return_leg": {
+          "samples": 3,
+          "median_ms": 35.5047470000045,
+          "p95_ms": 45.70364199980759,
+          "max_ms": 45.70364199980759,
+          "samples_ms": [
+            32.67074199993658,
+            35.5047470000045,
+            45.70364199980759
+          ]
+        }
+      },
+      "receipt_only-active": {
+        "delivery_ms": 35.88422400002855,
+        "sender_sm_handled_ms": 35.596954999846275,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "receipt_only-inactive": {
+        "delivery_ms": 2042.8565239999443,
+        "sender_sm_handled_ms": 37.33574900002168,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 1.5680029998748068
+      },
+      "omemo_legacy_only-active": {
+        "delivery_ms": 2.439558000105535,
+        "sender_sm_handled_ms": 2.5105040001562884,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_legacy_only-inactive": {
+        "delivery_ms": 2008.4427409999535,
+        "sender_sm_handled_ms": 2.87832799995158,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 1.7736980000790936
+      },
+      "omemo_2_only-active": {
+        "delivery_ms": 2.8043899999374844,
+        "sender_sm_handled_ms": 2.46161499990194,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_2_only-inactive": {
+        "delivery_ms": 2006.2423169999875,
+        "sender_sm_handled_ms": 2.324273000112953,
+        "durably_csi_buffered": true,
+        "forced_dwell_seconds": 2.0,
+        "after_activation_ms": 1.4116319998720428
+      },
+      "omemo_with_eme-active": {
+        "delivery_ms": 37.31560400001399,
+        "sender_sm_handled_ms": 37.00228699995023,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "omemo_with_eme-inactive": {
+        "delivery_ms": 34.92131200005133,
+        "sender_sm_handled_ms": 34.618570000020554,
+        "durably_csi_buffered": false,
+        "forced_dwell_seconds": 0,
+        "after_activation_ms": null
+      },
+      "sm_backlog": {
+        "seeded_messages": 500,
+        "durable_pending_before_sample": 500,
+        "delivery_ms": 37.54468600004657,
+        "sender_sm_handled_ms": 37.61967200011895
+      },
+      "status": "pass",
+      "final_personal_mam_records_per_user": [
+        100517,
+        100517
+      ],
+      "roster_contacts_per_user": 10000,
+      "seeded_personal_mam_records_per_user": 100000,
+      "archive_policy": "roster"
+    }
+  ]
+}

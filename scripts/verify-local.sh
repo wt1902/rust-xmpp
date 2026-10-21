@@ -18,6 +18,7 @@ python3 tests/wss_interop.py --binary target/release/rust-xmpp
 python3 tests/http_proxy_paths_network.py --binary target/release/rust-xmpp
 python3 tests/http_altconnect_network.py --binary target/release/rust-xmpp
 python3 tests/sasl2_bind.py target/release/rust-xmpp
+python3 tests/bind2_archive_latency_network.py --binary target/release/rust-xmpp --records 10000 --samples 2 --output /tmp/bind2-archive-latency.json
 python3 tests/sasl2_cached_inline.py target/release/rust-xmpp
 python3 tests/gajim_discovery_network.py target/release/rust-xmpp
 python3 tests/sasl2_resume.py target/release/rust-xmpp
@@ -29,6 +30,10 @@ python3 tests/preauth_network.py target/release/rust-xmpp
 python3 tests/muc_restart_network.py target/release/rust-xmpp
 python3 tests/muc_crash_network.py target/release/rust-xmpp
 python3 tests/sm_restart_network.py target/release/rust-xmpp
+python3 tests/push_latency_network.py --binary target/release/rust-xmpp --recipient hibernating --output /tmp/push-latency.json
+python3 tests/push_latency_network.py --binary target/release/rust-xmpp --recipient offline --output /tmp/push-offline-latency.json
+python3 tests/personal_message_latency_network.py --binary target/release/rust-xmpp --rounds 1 --history-records 1000 --roster-sizes 0 --backlog 30 --csi-dwell 0.1 --output /tmp/personal-message-latency.json
+python3 tests/message_latency_network.py --binary target/release/rust-xmpp --rounds 3 --history-records 0 10000 --output /tmp/xmpp-message-latency.json
 python3 tests/resource_rebind.py target/release/rust-xmpp
 python3 scripts/integration_http.py
 python3 scripts/integration_http.py --custom-upload-path

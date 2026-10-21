@@ -28,8 +28,8 @@
 В нём сейчас нет `.git`. Если следующая среда содержит Git checkout, используйте
 его состояние и инструкции, не создавайте второй расходящийся источник истины.
 
-Версия Rust source — **0.8.0**. Последующие изменения добавили GitHub Actions,
-Docker target для проверенного бинарника и этот handoff без изменения Rust source.
+Версия Rust source — **0.8.2**. В0.8.0 добавлены durable MUC/SM, затем CI
+и этот handoff;0.8.1 исправляет задержку сообщений. См. docs/MESSAGE-LATENCY.md.
 Перед передачей исходники упаковываются в ZIP; актуальный архив должен содержать
 этот файл и `.github/workflows/ci.yml`. В среде ChatGPT сохраняйте новый архив
 через доступный Library workflow, обновляя существующий проект, если его identity
@@ -38,7 +38,8 @@ Docker target для проверенного бинарника и этот han
 ## С чего начать
 
 1. Прочитайте README.md, docs/COMPATIBILITY.md, docs/VALIDATION.md.
-2. Для MUC/SM: docs/MUC-RECOVERY.md и CHANGELOG-0.8.0.md.
+2. Для MUC/SM: docs/MUC-RECOVERY.md, CHANGELOG-0.8.0.md/0.8.1.md
+   и docs/MESSAGE-LATENCY.md/PERSONAL-MESSAGE-LATENCY.md. Не возвращайте expiry scan архива на каждый append.
 3. Для upload: docs/HTTP-UPLOAD.md, исторические VALIDATION-0.7.8.md/0.7.9.md.
 4. Для CI: docs/GITHUB-ACTIONS.md, docs/CI-VALIDATION.md,
    `.github/workflows/ci.yml`, scripts/ci/verify-all.sh.
@@ -188,6 +189,32 @@ APNs/FCM/production client cycle не подтверждены.
 GitHub workflow проверен actionlint1.7.7, shell/Python syntax и случаями tags.
 Реального GitHub run, Docker build/run и Gitea push пока НЕ было: Docker daemon
 здесь отсутствует, доступ к пользовательскому GitHub/Gitea не предоставлен.
+
+## Исправление задержки0.8.1
+
+Полный MUC archive expiry на каждом сообщении был причиной seconds-level latency:
+100000records, median2518мс до →4.680мс после в realTLS loopback. Убраны no-op
+CSI checkpoints и перезаписи неизменённых native exports; private account traffic
+не ждёт MUC mutex. Обязательные durable commits сохранены. Четыре новые
+структурные регрессии прошли; измерения содержат raw samples и binary hashes.
+Результаты нового итогового прогона смотрите в docs/VALIDATION-0.8.1.md.
+Старые293tests и10GiB цифры выше относятся к прошлым выпускам.
+
+## Личная доставка0.8.2
+
+Не await push gateway в обработчике личного сообщения: очередь1024/max8worker,
+RAII cancellation при stop/error. Сначала durable offline/SM data, потомpush.
+Runtime CSI defaults теперь включают OMEMO encrypted/receipts/markers; explicit
+список заменяет defaults. Raw native importance function не менялась. Refresh
+policy при resume нужен для старых persisted slots. Логmessage-processing-slow
+не включает payload. Hub.for_owners выбирает account resources до session locks;
+не возвращайте сканирование всех чужих session locks при deliver/carbons.
+Archive.edges_store читает только endpoints для Bind2 и metadata IQ; сохранены
+bounded Lua/recovery/locks, middle не проверяется этим metadata operation.
+Новые тесты: personal_message_latency_network.py, push_latency_network.py,
+bind2_archive_latency_network.py, archive_edges.rs, session_routing_isolation.rs.
+Результаты текущей версии: docs/VALIDATION-0.8.2.md. Полный MAM query/maintenance
+и глобальный mutex SM Store остаются возможными отдельными IO bottlenecks.
 
 ## Ближайшие задачи и границы
 

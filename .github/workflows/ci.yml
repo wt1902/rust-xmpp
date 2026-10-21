@@ -80,6 +80,11 @@ jobs:
           path: |
             ci-results/
             /tmp/muc-sm-load.json
+            /tmp/xmpp-message-latency.json
+            /tmp/personal-message-latency.json
+            /tmp/push-latency.json
+            /tmp/push-offline-latency.json
+            /tmp/bind2-archive-latency.json
           if-no-files-found: warn
           retention-days: 14
 

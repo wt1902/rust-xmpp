@@ -990,10 +990,18 @@ impl Muc {
         if r.data("persistent").as_bool() == Some(true) || self.pending_occupants.has_room(room) {
             let mut merged = r.original.clone();
             merge_value(&mut merged, &r.frozen);
-            crate::storage::atomic_write(
-                &self.path(room),
-                crate::storage::serialize(&merged)?.as_bytes(),
-            )?;
+            let path = self.path(room);
+            let encoded = crate::storage::serialize(&merged)?;
+            // Native files are compatibility exports. Keep retrying missing or
+            // changed exports, but avoid an atomic write/fsync for unchanged rooms.
+            let unchanged = match std::fs::read(&path) {
+                Ok(bytes) => bytes == encoded.as_bytes(),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+                Err(error) => return Err(error.into()),
+            };
+            if !unchanged {
+                crate::storage::atomic_write(&path, encoded.as_bytes())?;
+            }
             let path = self
                 .root
                 .join(crate::storage::encode_name(&self.domain))
@@ -1003,8 +1011,10 @@ impl Muc {
             } else {
                 json!({})
             };
-            index[room] = json!(true);
-            write_value(&path, &index)?;
+            if index.get(room) != Some(&json!(true)) {
+                index[room] = json!(true);
+                write_value(&path, &index)?;
+            }
         } else if self.path(room).exists() {
             std::fs::remove_file(self.path(room))?;
             crate::storage::update(&self.root, &self.domain, None, "persistent", |v| {
@@ -2059,18 +2069,8 @@ impl Muc {
                                 xml: archived,
                             },
                         )?;
-                        if let Some(seconds) = self.retention_seconds {
-                            crate::archive::expire_before(
-                                &self.root,
-                                &self.domain,
-                                Some(room.split('@').next().unwrap()),
-                                "muc_log",
-                                std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)?
-                                    .as_secs_f64()
-                                    - seconds,
-                            )?;
-                        }
+                        // Retention runs during maintenance and before MAM queries.
+                        // A normal append must not scan/rewrite the entire archive.
                         payload
                     } else {
                         payload

@@ -1,0 +1,232 @@
+{
+  "binary_sha256": "c57757476f2019c60ac877e4a66364b17283218e3cc244ae3f29cde1d3be2977",
+  "scope": "loopback STARTTLS; isolated fixture; no production latency claim",
+  "cases": [
+    {
+      "mam_enabled": false,
+      "sm_enabled": true,
+      "rounds": 3,
+      "seeded_muc_archive_records": 0,
+      "active": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 2.188561000025402,
+          "p95_ms": 2.3107499999923675,
+          "max_ms": 2.3107499999923675,
+          "samples_ms": [
+            2.0956669999350197,
+            2.188561000025402,
+            2.3107499999923675
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 4.38233800002763,
+          "p95_ms": 4.56658600000992,
+          "max_ms": 4.56658600000992,
+          "samples_ms": [
+            4.381051999985175,
+            4.38233800002763,
+            4.56658600000992
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 3.617779000023802,
+          "p95_ms": 3.788068999938332,
+          "max_ms": 3.788068999938332,
+          "samples_ms": [
+            3.264654999952654,
+            3.617779000023802,
+            3.788068999938332
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 3.8124090000337674,
+          "p95_ms": 3.8366489999361875,
+          "max_ms": 3.8366489999361875,
+          "samples_ms": [
+            3.3308939999869835,
+            3.8124090000337674,
+            3.8366489999361875
+          ]
+        }
+      },
+      "inactive": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 2.189512999962062,
+          "p95_ms": 2.2236539999767047,
+          "max_ms": 2.2236539999767047,
+          "samples_ms": [
+            2.1697740000945487,
+            2.189512999962062,
+            2.2236539999767047
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 4.169533999970554,
+          "p95_ms": 4.451736999953937,
+          "max_ms": 4.451736999953937,
+          "samples_ms": [
+            4.0612270000792705,
+            4.169533999970554,
+            4.451736999953937
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 3.311576999976751,
+          "p95_ms": 4.169272000012825,
+          "max_ms": 4.169272000012825,
+          "samples_ms": [
+            3.2493040000645124,
+            3.311576999976751,
+            4.169272000012825
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 3.372077999983958,
+          "p95_ms": 4.188992999957009,
+          "max_ms": 4.188992999957009,
+          "samples_ms": [
+            3.315083000074992,
+            3.372077999983958,
+            4.188992999957009
+          ]
+        }
+      },
+      "urgent_flush": {
+        "samples": 1,
+        "median_ms": 3.6135210000338702,
+        "p95_ms": 3.6135210000338702,
+        "max_ms": 3.6135210000338702,
+        "samples_ms": [
+          3.6135210000338702
+        ]
+      },
+      "headline_durably_buffered": true,
+      "activation_drained_queue": true,
+      "personal_archive_records": 0,
+      "muc_archive_records": 0,
+      "wire_body_deliveries": 27,
+      "status": "pass"
+    },
+    {
+      "mam_enabled": true,
+      "sm_enabled": true,
+      "rounds": 3,
+      "seeded_muc_archive_records": 100000,
+      "active": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 4.533615000013924,
+          "p95_ms": 4.635108000002219,
+          "max_ms": 4.635108000002219,
+          "samples_ms": [
+            3.9327949999687917,
+            4.533615000013924,
+            4.635108000002219
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 8.584756000004745,
+          "p95_ms": 9.454648999962956,
+          "max_ms": 9.454648999962956,
+          "samples_ms": [
+            8.391761999973824,
+            8.584756000004745,
+            9.454648999962956
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 4.660852999904819,
+          "p95_ms": 14.45046399999228,
+          "max_ms": 14.45046399999228,
+          "samples_ms": [
+            4.372101999933875,
+            4.660852999904819,
+            14.45046399999228
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 4.680227999983799,
+          "p95_ms": 14.532127000052242,
+          "max_ms": 14.532127000052242,
+          "samples_ms": [
+            4.40479399992455,
+            4.680227999983799,
+            14.532127000052242
+          ]
+        }
+      },
+      "inactive": {
+        "direct_peer": {
+          "samples": 3,
+          "median_ms": 5.005547999985538,
+          "p95_ms": 5.457555000020875,
+          "max_ms": 5.457555000020875,
+          "samples_ms": [
+            4.749896000021181,
+            5.005547999985538,
+            5.457555000020875
+          ]
+        },
+        "direct_application_rtt": {
+          "samples": 3,
+          "median_ms": 9.33329400004368,
+          "p95_ms": 9.77378499999304,
+          "max_ms": 9.77378499999304,
+          "samples_ms": [
+            8.875206999960028,
+            9.33329400004368,
+            9.77378499999304
+          ]
+        },
+        "muc_sender_echo": {
+          "samples": 3,
+          "median_ms": 4.230191000033301,
+          "p95_ms": 5.015898000010566,
+          "max_ms": 5.015898000010566,
+          "samples_ms": [
+            4.2100000000573345,
+            4.230191000033301,
+            5.015898000010566
+          ]
+        },
+        "muc_peer": {
+          "samples": 3,
+          "median_ms": 4.284876000042459,
+          "p95_ms": 5.071866999969643,
+          "max_ms": 5.071866999969643,
+          "samples_ms": [
+            4.257245000076182,
+            4.284876000042459,
+            5.071866999969643
+          ]
+        }
+      },
+      "urgent_flush": {
+        "samples": 1,
+        "median_ms": 5.098277999991296,
+        "p95_ms": 5.098277999991296,
+        "max_ms": 5.098277999991296,
+        "samples_ms": [
+          5.098277999991296
+        ]
+      },
+      "headline_durably_buffered": true,
+      "activation_drained_queue": true,
+      "personal_archive_records": 26,
+      "muc_archive_records": 100006,
+      "wire_body_deliveries": 27,
+      "status": "pass"
+    }
+  ]
+}

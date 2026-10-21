@@ -46,6 +46,7 @@ pub struct Runtime {
     uploads: Arc<BTreeMap<String, crate::http_service::UploadService>>,
     started: Instant,
     push: Arc<Mutex<crate::push::Push>>,
+    push_routes: mpsc::Sender<(String, String)>,
     federation: Option<crate::federation::Federation>,
     stopping: Arc<std::sync::atomic::AtomicBool>,
 }
@@ -318,33 +319,24 @@ impl Drop for Cleanup {
                     ));
                 }
             }
-            if !queued.is_empty()
-                && let Ok(handle) = tokio::runtime::Handle::try_current()
-            {
-                let rt = self.runtime.clone();
-                handle.spawn(async move {
-                    for (user, identifier, messages) in queued {
-                        let result = rt.push.lock().unwrap().notify_queue(
-                            &rt.data,
-                            &rt.domain,
-                            &user,
-                            &messages,
-                            &rt.config,
-                            &identifier,
-                        );
-                        let notifications = if let Ok(result) = result {
-                            if result.reset_watchdog {
-                                reset_push_watchdog(&rt, &user, &identifier);
-                            }
-                            result.deliveries
-                        } else {
-                            Vec::new()
-                        };
-                        for (to, payload) in notifications {
-                            let _ = route_delivery(&rt, &to, &payload).await;
-                        }
+            let rt = &self.runtime;
+            for (user, identifier, messages) in queued {
+                let result = rt.push.lock().unwrap().notify_queue(
+                    &rt.data,
+                    &rt.domain,
+                    &user,
+                    &messages,
+                    &rt.config,
+                    &identifier,
+                );
+                if let Ok(result) = result {
+                    if result.reset_watchdog {
+                        reset_push_watchdog(rt, &user, &identifier);
                     }
-                });
+                    for (to, payload) in result.deliveries {
+                        enqueue_push_route(rt, to, payload);
+                    }
+                }
             }
         }
     }
@@ -565,7 +557,7 @@ fn reset_push_watchdog(rt: &Runtime, user: &str, identifier: &str) {
         "smacks_hibernation_time",
         300,
     ));
-    for session in rt.hub.all() {
+    for session in rt.hub.for_owners(&[&owner]) {
         let mut s = session.lock().unwrap();
         if s.owner == owner && s.push_identifier.as_deref() == Some(identifier) {
             s.first_important_push(timeout);
@@ -932,6 +924,7 @@ pub async fn serve(path: &Path) -> Result<()> {
         "durable-sessions-loaded",
         &[("count", &hub.all().len().to_string())],
     );
+    let (push_routes, push_route_rx) = mpsc::channel(1024);
     let runtime = Runtime {
         _data_guard: data_guard,
         domain: domain.clone(),
@@ -963,9 +956,14 @@ pub async fn serve(path: &Path) -> Result<()> {
         uploads: Arc::new(uploads),
         started: Instant::now(),
         push: Default::default(),
+        push_routes,
         stopping: Default::default(),
         federation,
     };
+    let push_worker = PushRouteWorker(tokio::spawn(run_push_routes(
+        runtime.clone(),
+        push_route_rx,
+    )));
     let interfaces = c
         .option(&domain, "interfaces")
         .and_then(|v| v.as_array())
@@ -1317,6 +1315,7 @@ pub async fn serve(path: &Path) -> Result<()> {
         );
     }
     tasks.abort_all();
+    push_worker.0.abort();
     Ok(())
 }
 fn bind_listener(addr: std::net::SocketAddr) -> Result<TcpListener> {
@@ -1350,9 +1349,14 @@ async fn csi_send<S: AsyncWrite + Unpin>(
     let output = if let Some(session) = session {
         let mut s = session.lock().unwrap();
         let owner = s.owner.clone();
-        let output = s.csi.output(xml.into(), &owner, Instant::now());
-        s.checkpoint()?;
-        output
+        let output = s.csi.pending_output(xml.into(), &owner, Instant::now());
+        if output.durable_changed()
+            && let Err(error) = s.checkpoint()
+        {
+            output.rollback(&mut s.csi);
+            return Err(error);
+        }
+        output.commit()
     } else {
         vec![xml.into()]
     };
@@ -1367,9 +1371,14 @@ async fn csi_activity<S: AsyncWrite + Unpin>(
 ) -> Result<()> {
     let output = if let Some(s) = session {
         let mut s = s.lock().unwrap();
-        let output = s.csi.activity(Instant::now());
-        s.checkpoint()?;
-        output
+        let output = s.csi.pending_activity(Instant::now());
+        if output.durable_changed()
+            && let Err(error) = s.checkpoint()
+        {
+            output.rollback(&mut s.csi);
+            return Err(error);
+        }
+        output.commit()
     } else {
         Vec::new()
     };
@@ -2433,6 +2442,17 @@ fn pep_iq_metadata(
     Some(fields)
 }
 
+// Ordinary account traffic must not wait for MUC archive maintenance or room
+// checkpoints. Component identity comes from immutable, validated configuration.
+fn is_muc_destination(config: &Config, target: &str) -> bool {
+    let target = protocol::bare(target);
+    let domain = target.rsplit_once('@').map_or(target, |(_, domain)| domain);
+    config
+        .hosts
+        .get(domain)
+        .is_some_and(|host| host.component.as_deref() == Some("muc"))
+}
+
 fn dispatch_iq(
     rt: &Runtime,
     jid: &str,
@@ -2446,7 +2466,7 @@ fn dispatch_iq(
     let typ = iq.attribute("type").unwrap_or("");
     let target = iq.attribute("to").unwrap_or(&rt.domain);
     let target_bare = protocol::bare(target);
-    {
+    if is_muc_destination(&rt.config, target) {
         let mut rooms = rt.mucs.lock().unwrap();
         for muc in rooms.values_mut() {
             if let Some(result) = muc.handle(jid, iq)? {
@@ -2875,15 +2895,7 @@ impl<S: AsyncRead + Unpin> AsyncRead for ActivityReader<'_, S> {
         result
     }
 }
-fn configure_bound_session(
-    rt: &Runtime,
-    s: &SharedSession,
-    client_id: Option<String>,
-    csi_inactive: bool,
-) -> Result<()> {
-    s.lock().unwrap().ack_limit =
-        number(&rt.config, &rt.domain, "smacks_max_unacked", 100) as usize;
-    s.lock().unwrap().client_id = client_id.clone();
+fn configure_csi_buffer(rt: &Runtime, buffer: &mut crate::csi::Buffer) {
     if rt.enabled("csi_simple") {
         let limit = number(&rt.config, &rt.domain, "csi_queue_size", 256) as usize;
         let delay = period(
@@ -2901,13 +2913,25 @@ fn configure_bound_session(
                     .filter_map(|v| v.as_str().map(str::to_owned))
                     .collect()
             })
-            .unwrap_or_default();
-        s.lock()
-            .unwrap()
-            .csi
-            .configure(limit, Duration::from_secs_f64(delay), payloads);
+            .unwrap_or_else(|| {
+                crate::csi::DEFAULT_IMPORTANT_PAYLOADS
+                    .iter()
+                    .map(|value| (*value).to_owned())
+                    .collect()
+            });
+        buffer.configure(limit, Duration::from_secs_f64(delay), payloads);
     }
+}
+fn configure_bound_session(
+    rt: &Runtime,
+    s: &SharedSession,
+    client_id: Option<String>,
+    csi_inactive: bool,
+) -> Result<()> {
     let mut session = s.lock().unwrap();
+    session.ack_limit = number(&rt.config, &rt.domain, "smacks_max_unacked", 100) as usize;
+    session.client_id = client_id;
+    configure_csi_buffer(rt, &mut session.csi);
     session.csi.set_inactive(csi_inactive);
     session.checkpoint()?;
     Ok(())
@@ -2978,7 +3002,14 @@ async fn restore_muc_after_resume<S: AsyncWrite + Unpin>(
     rt: &Runtime,
     ctx: &ConnectionLog,
 ) -> Result<()> {
-    let full = session.lock().unwrap().jid.clone();
+    let full = {
+        let mut state = session.lock().unwrap();
+        // Restored slots may contain the previous release's policy; current
+        // explicit configuration/defaults apply equally to bind and resume.
+        configure_csi_buffer(rt, &mut state.csi);
+        state.checkpoint()?;
+        state.jid.clone()
+    };
     let results = {
         let mut rooms = rt.mucs.lock().unwrap();
         rooms
@@ -3084,15 +3115,11 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             }
         }
         if rt.enabled("mam") {
-            let mut first = None;
-            let mut last = None;
-            crate::archive::scan_store(&rt.data, &rt.domain, Some(&user), "archive", |entry| {
-                if first.is_none() {
-                    first = Some((entry.id.clone(), entry.when));
-                }
-                last = Some((entry.id, entry.when));
-                Ok(())
-            })?;
+            let edges = crate::archive::edges_store(&rt.data, &rt.domain, Some(&user), "archive")?;
+            let (first, last) = match edges {
+                Some((first, last)) => (Some((first.id, first.when)), Some((last.id, last.when))),
+                None => (None, None),
+            };
             bound.push_str("<metadata xmlns='urn:xmpp:mam:2'>");
             for (element, edge) in [("start", first), ("end", last)] {
                 if let Some((id, when)) = edge {
@@ -3275,6 +3302,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
         );
         ctx.event(Level::Debug, "stanza-received", &[("kind", kind)]);
         let handled_session = session.clone();
+        let processing_started = Instant::now();
         async {
         if kind == "iq" {
             let typ = n.attribute("type").unwrap_or("");
@@ -3434,7 +3462,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             apply(stream, session.as_ref(), &rt, result).await?;
         } else {
             let full = jid.as_deref().context("binding required")?;
-            let muc_result = {
+            let muc_result = if n.attribute("to").is_some_and(|to| is_muc_destination(&rt.config, to)) {
                 let mut rooms = rt.mucs.lock().unwrap();
                 let mut found = None;
                 for muc in rooms.values_mut() {
@@ -3444,6 +3472,8 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                     }
                 }
                 found
+            } else {
+                None
             };
             if let Some(result) = muc_result {
                 apply(stream, session.as_ref(), &rt, result).await?;
@@ -3652,7 +3682,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         && n.tag_name().name() == "private"
                 })
             {
-                for s in rt.hub.all() {
+                for s in rt.hub.for_owners(&[&owner, protocol::bare(to)]) {
                     let mut s = s.lock().unwrap();
                     if !s.carbons || s.jid == full || target_jids.contains(&s.jid) {
                         continue;
@@ -3675,20 +3705,11 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                     }
                 }
             }
-            if rt.enabled("cloud_notify")
-                && typ != "error"
-                && let Some(u) = &local
-            {
-                let doc = roxmltree::Document::parse(&xml)?;
-                let pushes = message_pushes(&rt, u, to, delivered, doc.root_element())?;
-                for (to, payload) in pushes {
-                    let _ = route_delivery(&rt, &to, &payload).await;
-                }
-            }
-
+            // A push can wake the client immediately. Commit offline delivery
+            // before publishing its notification, just as for durable SM output.
             if delivered == 0 && !matches!(typ, "error" | "headline") {
-                let queued = if let Some(u) = local {
-                    crate::account_modules::offline_enqueue(&rt.data, &rt.domain, &u, &xml)?
+                let queued = if let Some(u) = &local {
+                    crate::account_modules::offline_enqueue(&rt.data, &rt.domain, u, &xml)?
                 } else {
                     false
                 };
@@ -3696,6 +3717,17 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                     emit(stream,session.as_ref(),&format!("<message xmlns='{CLIENT}' type='error' id='{}' from='{}' to='{}'><error type='cancel'><service-unavailable xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'/></error></message>",escape(n.attribute("id").unwrap_or("")),escape(to),escape(full))).await?;
                 }
             }
+            if rt.enabled("cloud_notify")
+                && typ != "error"
+                && let Some(u) = &local
+            {
+                let doc = roxmltree::Document::parse(&xml)?;
+                let pushes = message_pushes(&rt, u, to, delivered, doc.root_element())?;
+                for (to, payload) in pushes {
+                    enqueue_push_route(&rt, to, payload);
+                }
+            }
+
         }
             Ok::<(), anyhow::Error>(())
         }.await?;
@@ -3704,6 +3736,28 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
             if !state.closed {
                 state.mark_handled()?;
             }
+        }
+        if kind == "message" && processing_started.elapsed() >= Duration::from_millis(250) {
+            let route = n.attribute("to").map_or("implicit", |to| {
+                if is_muc_destination(&rt.config, to) {
+                    "muc"
+                } else if rt.owner(to).is_some() {
+                    "local"
+                } else {
+                    "remote-or-component"
+                }
+            });
+            ctx.event(
+                Level::Warn,
+                "message-processing-slow",
+                &[
+                    (
+                        "duration_ms",
+                        &processing_started.elapsed().as_millis().to_string(),
+                    ),
+                    ("route", route),
+                ],
+            );
         }
     }
     Ok(())
@@ -3733,6 +3787,53 @@ fn period(value: Option<&serde_json::Value>, default: Option<f64>) -> Option<f64
         }
         _ => default,
     }
+}
+// The guard lives in serve rather than Runtime: Runtime clones inside queued
+// routes must not keep their own worker (and the data-directory lock) alive.
+struct PushRouteWorker(tokio::task::JoinHandle<()>);
+impl Drop for PushRouteWorker {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+fn enqueue_push_route(rt: &Runtime, to: String, xml: String) {
+    if let Err(error) = rt.push_routes.try_send((to, xml)) {
+        let reason = match error {
+            mpsc::error::TrySendError::Full(_) => "queue-full",
+            mpsc::error::TrySendError::Closed(_) => "worker-closed",
+        };
+        rt.logger.event(
+            Level::Warn,
+            "push",
+            None,
+            "notification-routing-failed",
+            &[("reason", reason)],
+        );
+    }
+}
+async fn run_push_routes(rt: Runtime, mut receiver: mpsc::Receiver<(String, String)>) {
+    let mut routes = tokio::task::JoinSet::new();
+    loop {
+        tokio::select! {
+            result = routes.join_next(), if !routes.is_empty() => {
+                if result.is_some_and(|result| result.is_err()) {
+                    rt.logger.event(Level::Warn, "push", None,
+                        "notification-routing-failed", &[("reason", "routing-task-failed")]);
+                }
+            }
+            next = receiver.recv(), if routes.len() < 8 => {
+                let Some((to, xml)) = next else { break };
+                let runtime = rt.clone();
+                routes.spawn(async move {
+                    if route_delivery(&runtime, &to, &xml).await.is_err() {
+                        runtime.logger.event(Level::Warn, "push", None,
+                            "notification-routing-failed", &[("reason", "route-failed")]);
+                    }
+                });
+            }
+        }
+    }
+    // Dropping JoinSet aborts in-flight routes, including on worker cancellation.
 }
 async fn route_delivery(rt: &Runtime, to: &str, xml: &str) -> Result<usize> {
     let domain = protocol::bare(to)
@@ -3836,7 +3937,7 @@ async fn incoming_federated(rt: Runtime, stanza: crate::federation::FederatedSta
         }
         return Ok(());
     }
-    let muc_result = {
+    let muc_result = if is_muc_destination(&rt.config, to) {
         let mut rooms = rt.mucs.lock().unwrap();
         let mut out = None;
         for room in rooms.values_mut() {
@@ -3846,6 +3947,8 @@ async fn incoming_federated(rt: Runtime, stanza: crate::federation::FederatedSta
             }
         }
         out
+    } else {
+        None
     };
     if let Some(result) = muc_result {
         for reply in result.replies {
@@ -3918,7 +4021,7 @@ async fn incoming_federated(rt: Runtime, stanza: crate::federation::FederatedSta
         }
         let notifications = message_pushes(&rt, &user, to, delivered, n)?;
         for (to, xml) in notifications {
-            let _ = route_delivery(&rt, &to, &xml).await;
+            enqueue_push_route(&rt, to, xml);
         }
     }
     Ok(())

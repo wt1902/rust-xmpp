@@ -1,0 +1,164 @@
+{
+  "binary_source": "/tmp/rust-xmpp-0.8.2-final",
+  "binary_sha256": "130431025c4c7c2f72e28b77a31c83867f857ef8bb56d1f71b10e4b19d7caaf5",
+  "scope": "real loopback TCP/STARTTLS/SASL2 Bind2; isolated personal MAM fixture; no production latency claim",
+  "timing": "raw ordered samples; auth timer starts before authenticate and ends at parsed success; full timer includes TCP/STARTTLS/features; metadata IQ timer runs from send to parsed result",
+  "result": {
+    "status": "pass",
+    "seeded_personal_archive_records": 100000,
+    "archive_bytes": 21488890,
+    "archive_expires_after": "never",
+    "index_present_before_start": false,
+    "reconnect_samples": 5,
+    "expected_metadata": {
+      "start": {
+        "id": "seed-0",
+        "timestamp": "2026-01-01T00:00:00Z"
+      },
+      "end": {
+        "id": "seed-99999",
+        "timestamp": "2026-01-02T03:46:39Z"
+      }
+    },
+    "observed_metadata": [
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      }
+    ],
+    "mam_metadata_iq": {
+      "samples_ms": [
+        0.4802089999884629,
+        0.35487300010572653,
+        0.3393980000510055,
+        0.49224100007450033,
+        0.3266720000283385
+      ],
+      "median_ms": 0.35487300010572653,
+      "p95_ms": 0.49224100007450033,
+      "max_ms": 0.49224100007450033
+    },
+    "observed_iq_metadata": [
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      },
+      {
+        "start": {
+          "id": "seed-0",
+          "timestamp": "2026-01-01T00:00:00Z"
+        },
+        "end": {
+          "id": "seed-99999",
+          "timestamp": "2026-01-02T03:46:39Z"
+        }
+      }
+    ],
+    "sasl2_bind2_success": {
+      "samples_ms": [
+        1.9306740000502032,
+        2.103263999970295,
+        2.0025989999794547,
+        1.9764060000397876,
+        1.8955069999719854
+      ],
+      "median_ms": 1.9764060000397876,
+      "p95_ms": 2.103263999970295,
+      "max_ms": 2.103263999970295
+    },
+    "tcp_starttls_to_bind2_success": {
+      "samples_ms": [
+        6.099597000002177,
+        3.735450000021956,
+        3.564695000022766,
+        3.3520640001825086,
+        3.3587010000246664
+      ],
+      "median_ms": 3.564695000022766,
+      "p95_ms": 6.099597000002177,
+      "max_ms": 6.099597000002177
+    }
+  }
+}

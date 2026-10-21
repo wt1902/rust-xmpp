@@ -53,7 +53,7 @@ Image smoke проходит и на PR. Только после успеха в
 
 - `sha-<полный40символьныйcommit>` — каждый публикуемый commit;
 - `latest` — только основная ветка;
-- `v0.8.0` — пример version tag; он должен совпадать с Cargo.toml.
+- `v0.8.2` — пример version tag; он должен совпадать с Cargo.toml.
 
 Version tag не меняет latest; prerelease также не перезаписывает latest.
 Собирается Linux amd64, не multiarch. Локальный `docker build .` по-прежнему

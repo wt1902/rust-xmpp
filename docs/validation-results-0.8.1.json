@@ -1,0 +1,190 @@
+{
+  "version": "0.8.1",
+  "date_utc": "2026-10-21",
+  "ordinary_tests": {
+    "passed": 297,
+    "failed": 0,
+    "ignored": 11
+  },
+  "fmt": "passed",
+  "clippy": "passed",
+  "release": "passed",
+  "release_binary_sha256": "c57757476f2019c60ac877e4a66364b17283218e3cc244ae3f29cde1d3be2977",
+  "native_module_tests": 8,
+  "native_federation_tests": 1,
+  "full_verify": "passed in single final run with native and both500-client loads",
+  "message_latency": {
+    "scope": "loopback STARTTLS; isolated fixture; no production latency claim",
+    "before_binary_sha256": "74882319fcb467dd1e1813ab61e85441ffd3dae2f9f7961b28fd98ec5da7c89a",
+    "after_binary_sha256": "c57757476f2019c60ac877e4a66364b17283218e3cc244ae3f29cde1d3be2977",
+    "muc_history_records": 100000,
+    "rounds_per_state": 3,
+    "active_before": {
+      "samples": 3,
+      "median_ms": 2517.9402029999665,
+      "p95_ms": 2520.940784000004,
+      "max_ms": 2520.940784000004,
+      "samples_ms": [
+        2502.2604349999256,
+        2517.9402029999665,
+        2520.940784000004
+      ]
+    },
+    "active_after": {
+      "samples": 3,
+      "median_ms": 4.680227999983799,
+      "p95_ms": 14.532127000052242,
+      "max_ms": 14.532127000052242,
+      "samples_ms": [
+        4.40479399992455,
+        4.680227999983799,
+        14.532127000052242
+      ]
+    },
+    "inactive_before": {
+      "samples": 3,
+      "median_ms": 3866.027479999957,
+      "p95_ms": 4150.866962999999,
+      "max_ms": 4150.866962999999,
+      "samples_ms": [
+        2901.4587140000003,
+        3866.027479999957,
+        4150.866962999999
+      ]
+    },
+    "inactive_after": {
+      "samples": 3,
+      "median_ms": 4.284876000042459,
+      "p95_ms": 5.071866999969643,
+      "max_ms": 5.071866999969643,
+      "samples_ms": [
+        4.257245000076182,
+        4.284876000042459,
+        5.071866999969643
+      ]
+    }
+  },
+  "general_load": {
+    "total_load_wall_seconds": 8.892,
+    "requested_resources": 500,
+    "authenticated_bound_resources": 500,
+    "connection_setup_concurrency": 50,
+    "setup_wall_seconds": 0.646,
+    "setup_latency": {
+      "samples": 500,
+      "median_ms": 60.166,
+      "p95_ms": 81.981,
+      "max_ms": 105.233
+    },
+    "ping_rounds": 10,
+    "ping_round_trip": {
+      "samples": 5000,
+      "median_ms": 10.879,
+      "p95_ms": 21.103,
+      "max_ms": 23.338
+    },
+    "accounts": 100,
+    "message_rounds": 10,
+    "messages_sent": 5000,
+    "messages_received": 5000,
+    "message_batch_seconds": 6.009,
+    "metrics_before": {
+      "rss_kib": 8412,
+      "cpu_seconds": 0.0,
+      "fd_count": 11
+    },
+    "metrics_connected": {
+      "rss_kib": 27472,
+      "cpu_seconds": 1.09,
+      "fd_count": 511
+    },
+    "metrics_after_workload": {
+      "rss_kib": 28176,
+      "cpu_seconds": 11.23,
+      "fd_count": 511
+    },
+    "metrics_two_seconds_after_disconnect": {
+      "rss_kib": 28240,
+      "cpu_seconds": 11.27,
+      "fd_count": 11
+    },
+    "sampled_peak_rss_kib": 28240,
+    "fd_delta_after_disconnect": 0,
+    "failures": [],
+    "scope": "One loopback host, 100 accounts with distinct resources, TLS+PLAIN, ping and directed messages; not a production benchmark or proof of no memory leaks.",
+    "mam": {
+      "archive_files": 100,
+      "records": 10000,
+      "expected_records": 10000
+    }
+  },
+  "muc_sm_load": {
+    "clients": 500,
+    "accounts": 100,
+    "rooms": 10,
+    "message_rounds": 3,
+    "concurrency": 20,
+    "binary": "/tmp/xmpp-durable-muc-load-p95vsvii/rust-xmpp",
+    "binary_sha256": "c57757476f2019c60ac877e4a66364b17283218e3cc244ae3f29cde1d3be2977",
+    "before": {
+      "rss_kib": 10076,
+      "cpu_seconds": 0.0,
+      "fd_count": 12
+    },
+    "connect_seconds": 3.149,
+    "connect_latency": {
+      "samples": 500,
+      "median_ms": 121.817,
+      "p95_ms": 169.081,
+      "max_ms": 257.299
+    },
+    "phase": "completed",
+    "status": "pass",
+    "elapsed_seconds": 39.535,
+    "join_seconds": 25.54,
+    "joined": {
+      "rss_kib": 42224,
+      "cpu_seconds": 14.41,
+      "fd_count": 512
+    },
+    "join_presence_deliveries": 25000,
+    "slots_joined": {
+      "count": 500,
+      "bytes": 309790
+    },
+    "message_seconds": 5.504,
+    "room_messages_sent": 30,
+    "room_messages_delivered": 1500,
+    "before_kill": {
+      "rss_kib": 42224,
+      "cpu_seconds": 17.88,
+      "fd_count": 512
+    },
+    "slots_before_kill": {
+      "count": 500,
+      "bytes": 514030
+    },
+    "restart_seconds": 2.962,
+    "resumed_resources": 10,
+    "replayed_pending_room_messages": 10,
+    "membership_groupchat_deliveries_after_resume": 10,
+    "after_resume": {
+      "rss_kib": 20796,
+      "cpu_seconds": 2.81,
+      "fd_count": 22
+    },
+    "slots_after_resume": {
+      "count": 500,
+      "bytes": 671070
+    },
+    "total_seconds": 39.535,
+    "peak_rss_kib": 42240
+  },
+  "large_upload": "10GiB not repeated in0.8.1; S3 fixture/migration/network regression passed; historical0.7.8/0.7.9 reports retained",
+  "limitations": [
+    "Loopback timing, not production SLA or real client qualification",
+    "Required disk synchronization remains, at-least-once SM replay",
+    "Periodic archive maintenance and large MAM queries still perform archive IO",
+    "Full Prosody compatibility and production deployment not asserted; see COMPATIBILITY.md"
+  ]
+}

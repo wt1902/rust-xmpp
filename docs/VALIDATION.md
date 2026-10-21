@@ -1,50 +1,51 @@
-# Проверка 0.8.0
+# Проверка0.8.2
 
-Linux x86_64, Rust1.99.1, 2026-10-20. Итоговый полный прогон:
-[verify.txt](validation-logs-0.8.0/verify.txt).
-Структурированный отчёт: [validation-results.json](validation-results.json).
+2026-10-21, Linux x86_64, Rust1.99.1. Итоговый единый прогон:
+[verify.txt](validation-logs-0.8.2/verify.txt). Machine-readable report:
+[validation-results.json](validation-results.json).
 
-| Проверка | Результат |
+|Проверка|Результат|
 |---|---|
-| Rust tests | 293 passed, 0 failed, 11 ignored |
-| fmt / Clippy all-targets -D warnings / release | Успешно |
-| MUC SIGKILL через настоящий STARTTLS | temporary/persistent комнаты, несколько ресурсов, show/status/roles, порядок истории, подтверждённые leave/kick/demotion/password/config, фиксированный/custom grace — успешно |
-| SM между процессами | SIGKILL/SIGTERM, legacy SASL/SASL2, counters, ack/replay, неверные owner/token/h, resource conflict — успешно |
-| MUC offline fanout | До аутентификации Bob новое сообщение Alice уже в приватной durable SM-очереди; после resume доставка без history delay — успешно |
-| Отзыв SM | Удаление аккаунта подтверждается; после повторного создания старый SM-токен отклоняется |
-| MUC+SM нагрузка | 100 аккаунтов, 500 TLS-ресурсов, 10 комнат, 25000 join presence; SIGKILL и resume представителей всех комнат — успешно |
-| Native reference | 8 module/storage + 1 TLS/SASL EXTERNAL federation — успешно |
-| Остальные сетевые регрессии | Android SASL, WSS/BOSH/proxy/altconnect, PEP/push/preauth, resource policies, upload/S3/migration — успешно |
+|Rust ordinary tests|305passed,0failed,11ignored|
+|fmt / Clippy all-targets -D warnings / release|Успешно|
+|Новые Rust regressions|6archive endpoints/recovery/limits +2account-lock/duplicateACK — успешно|
+|Личная доставка|6fixtures:100000MAM/user, roster0/5000/10000,500SMpending, default/native CSI — успешно|
+|Неподвижный push gateway|Настоящий STARTTLS; hibernating+offline: bothmessagesdurable, senderACKh=4 до ответа gateway; offline сохранён до первого postTLSstream|
+|Bind2 и MAM metadata|100000records,5reconnects+5IQ, exactIDs/timestamps — успешно|
+|Сетевые регрессии|Весь verify-local.sh, включаяprivate WSS/BOSH chat, PEP/push,AndroidSASL,MUCcrash/SMrestart,S3/migration — успешно|
+|Native reference|8module/storage +1TLS/SASL EXTERNAL federation — успешно|
+|Общая нагрузка|500TLS,100accounts,5000ping,5000messages,10000MAM,failures=[]|
+|MUC+SM нагрузка|500resources,10rooms,25000presence,1500messages,SIGKILL+10resume — успешно|
 
-Нагрузка MUC+SM: connect 5.193 с; join 46.703 с;
-полный сценарий 78.857 с; выборочный peak RSS 41.26 MiB.
-Детали fanout, CPU, slots и replay: [muc-sm-load.json](validation-logs-0.8.0/muc-sm-load.json).
-Это loopback smoke measurement, а не гарантия production capacity.
+MUC+SM total 45.54с, peak sampled RSS 40.94MiB.
 
-SHA-256 итоговой release-сборки: `74882319fcb467dd1e1813ab61e85441ffd3dae2f9f7961b28fd98ec5da7c89a`.
-Основной прогон: `XMPP_LOAD_CHECK=1 bash scripts/verify-local.sh`; native env описан
-в scripts/prosody_compat/README.md. В этой среде дополнительно применены
-CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=0, CARGO_PROFILE_TEST_DEBUG=0.
+Воспроизведение личного push-stall: прежний0.8.1 за2с сохраняет только первое
+сообщение и не отвечаетSMACK при зависшем postTLSfeatures gateway. Новый0.8.2
+сохраняет оба и отвечаетh=4 в том же2сокне; тестовое окно не является latency SLA.
+Offline ordering baseline проверен на0.8.0; его точный hash указан отдельно.
 
-Первый основной прогон остановился на пятисекундном readiness timeout нового
-нагрузочного теста после успешных обычных и сетевых проверок. В самом тесте
-таймаут увеличен до60секунд; нагрузка500 повторена с той же release-сборкой,
-а native-проверки выполнены отдельно. verify.txt объединяет успешные части
-этих запусков; первоначальный лог сохранён в initial-load-timeout.txt.
+Bind2 authenticate→success median2742.353→1.976мс; metadataIQ2437.945→0.355мс.
+Baseline0.8.0hash74882319… содержит тот же прежний scan path. Все raw samples,
+IDs, timestamps и hashes — validation-logs-0.8.2/bind2-*.json.
 
-В процессе проверки исправлены потеря сохранённых presence/history, защита
-истёкших recovery claims, отсутствие успешного ответа при удалении аккаунта,
-учёт stanza до SM enable и потеря MUC fanout до подключения другого участника.
-Первоначальный тест последнего случая принимал позднюю историю за доставку;
-итоговый тест проверяет именно private pending queue до аутентификации.
+Default inactive OMEMO доставлен за2.58–4.06мс, receipts7.36–35.56мс в checked
+fixtures; explicit[] сохраняет удержание доactive. Намеренный CSI dwell2с
+отдельно обозначен в отчёте и не выдаётся за время вычисления/доставки.
+Каждый personalarchive содержит ровно100523records/user. Детали и настройка:
+[PERSONAL-MESSAGE-LATENCY.md](PERSONAL-MESSAGE-LATENCY.md).
 
-Реальные TCP/TLS-сокеты после завершения процесса отсутствуют: требуется новое
-защищённое аутентифицированное соединение. SM допускает повторную доставку при
-неопределённом сетевом результате; это не exactly-once транзакция между всеми
-хранилищами и сетью. Известные встроенные возможности MUC перенесены, произвольные
-community Lua-модули не исполняются. Пределы записей и порядок восстановления:
-[MUC-RECOVERY.md](MUC-RECOVERY.md). Полная замена всей установки и проверка
-реальными клиентами этим не заявляются: [COMPATIBILITY.md](COMPATIBILITY.md).
+Release SHA-256: `130431025c4c7c2f72e28b77a31c83867f857ef8bb56d1f71b10e4b19d7caaf5`. Все новые final reports содержат этот hash.
+Команда: `XMPP_LOAD_CHECK=1 bash scripts/verify-local.sh` с native env согласно
+scripts/prosody_compat/README.md. Использованы CARGO_INCREMENTAL=0,
+CARGO_PROFILE_DEV_DEBUG=0, CARGO_PROFILE_TEST_DEBUG=0. Перед итоговым прогоном
+устранены stale package linker artifacts очисткой package build outputs;
+исходники не менялись после финальной сборки. Воспроизведение прошло одним
+последующим полным прогоном; preliminary compiler errors не являются test failures.
 
-10GiB upload в0.8.0 не повторялся. Исторические испытания local/MinIO находятся
-в VALIDATION-0.7.8.md и VALIDATION-0.7.9.md; их результаты не приписываются новой сборке.
+Это loopback, не production клиента/диска/сети. Fsync и durable commit до
+подтверждения сохранены; boundedpushqueue не обещает durable notification delivery.
+SMglobalIOmutex, полные MAMqueries и maintenance остаются отдельной стоимостью.
+9nativeignoredtests выполнены; остальные AF_UNIX/largearchiveignoredtests и
+10GiBtransfers в этом локальном прогоне не запускались (полный CI entrypoint
+по-прежнему включает их). Старые largeupload результаты не приписываются0.8.2.
+Общие границы: [COMPATIBILITY.md](COMPATIBILITY.md).
