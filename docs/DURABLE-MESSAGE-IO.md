@@ -71,15 +71,15 @@ in-place append при активном redo считается незаверш
 `message-processing-slow` по-прежнему имеет threshold 250 мс, duration_ms, route
 и connection. Новые поля в integer milliseconds:
 
-|Поле|Измеряемый этап|
-|---|---|
-|pre_routing_ms|Работа до личного MAM; для MUC/ранних выходов — обработка до handled|
-|sender_mam_ms|Политика и архивирование отправителя|
-|recipient_mam_ms|Проверка аккаунта, политика и архивирование получателя|
-|delivery_ms|Маршрутизация, targets, mutex и transmit|
-|carbons_ms|Выбор ресурсов и отправка carbon|
-|offline_push_ms|Offline commit и подготовка/enqueue push|
-|handled_ms|Session mutex и durable mark_handled|
+| Поле             | Измеряемый этап                                                      |
+| ---------------- | -------------------------------------------------------------------- |
+| pre_routing_ms   | Работа до личного MAM; для MUC/ранних выходов — обработка до handled |
+| sender_mam_ms    | Политика и архивирование отправителя                                 |
+| recipient_mam_ms | Проверка аккаунта, политика и архивирование получателя               |
+| delivery_ms      | Маршрутизация, targets, mutex и transmit                             |
+| carbons_ms       | Выбор ресурсов и отправка carbon                                     |
+| offline_push_ms  | Offline commit и подготовка/enqueue push                             |
+| handled_ms       | Session mutex и durable mark_handled                                 |
 
 Неисполненные этапы равны 0. target_count — выбранные локальные ресурсы,
 carbon_count — успешные carbon transmit. Это серверные этапы, не время
@@ -101,3 +101,25 @@ partial tails, corruption, ротацию, tombstones, migration и offline hand
 Медленный диск не становится быстрым от сокращения числа sync. Проверка на
 loopback не устанавливает причину каждого production warning; новые phase
 fields позволяют проверить это на целевой системе.
+
+## 0.8.4: разблокировка и deferred online durability
+
+Глобальный `Store.slots` mutex ранее удерживался на весь commit (включая fsync),
+так что fsync одной сессии блокировал durable-коммиты всех остальных — при
+медленном диске и нескольких пользователях это выглядело как «сервер перестал
+отвечать на запросы». Теперь речь накладывает короткий lock `slots` только на
+валидацию/резервирование, а сам append+fsync идёт под per-session `wal` lock.
+Ротация/compaction/GC сериализуются отдельным `maintenance` lock вне любого
+`sessions` `wal` lock — дедлоков нет и инварианты durable сохранены.
+
+Для genuinely медленного диска добавлена Prosody-совместимая опция
+`smacks_online_durable = false` (strict — default). В режиме live-сессии с
+открытым transport не fsync на каждый outbound/ack, а помечают `dirty`;
+фоновый проход `smacks_flush_interval` (default1с) и offline-переход фиксируют
+состояние durable. Offline/hibernating цели фиксируются durable ДО доставки в
+любом режиме (сохранены crash-инварианты и регрессия Bob-online-не-авторизован).
+Резюме wire-проверки: strict crash/latency тесты зелёные; deferred прошел
+`tests/deferred_sm_online_network.py`; семантику store проверяют два новых Rust
+unit-теста в tests/sm_journal.rs. Полную durable-гарантию пред-ACK даёт строгий
+режим; deferred — это компромисс «максимальная совместимость с Prosody и
+низкая задержка» в обмен на ограниченное окно потери для online-пиров.
