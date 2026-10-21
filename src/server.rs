@@ -2887,6 +2887,43 @@ fn archive_policy(rt: &Runtime) -> &str {
         _ => "always",
     }
 }
+/// Sanitized, payload-free label for a session fault: values come from the
+/// error chain only and never contain stanza payload, tokens or passwords.
+fn sanitized_label(error: &anyhow::Error) -> String {
+    error
+        .chain()
+        .map(|x| x.to_string())
+        .find(|s| s.chars().all(|c| c.is_ascii() && !c.is_control()))
+        .unwrap_or_default()
+        .chars()
+        .take(160)
+        .collect()
+}
+/// Best-effort MAM archival so a storage fault (for example an untrusted redo
+/// baseline after an external write to the data directory) cannot take down
+/// message delivery. History is an attribute of delivery, not a prerequisite:
+/// on failure the original stanza is returned so the session stays up and the
+/// message is still routed. The fault is logged without payload.
+fn archive_message_best_effort(
+    rt: &Runtime,
+    ctx: &mut ConnectionLog,
+    owner: &str,
+    peer: &str,
+    xml: &str,
+    time: f64,
+) -> String {
+    match crate::mam::archive_for_user(&rt.data, &rt.domain, owner, peer, xml, time) {
+        Ok((_, stamped)) => stamped,
+        Err(error) => {
+            ctx.event(
+                Level::Warn,
+                "mam-archive-skipped",
+                &[("err", &sanitized_label(&error))],
+            );
+            xml.to_string()
+        }
+    }
+}
 fn routed(n: roxmltree::Node<'_, '_>, from: &str, to: &str) -> String {
     protocol::address(n, from, to)
 }
@@ -3647,15 +3684,14 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                         boolean(&rt.config, &rt.domain, "mam_smart_enable", false),
                     )?
                 {
-                    let (_, stamped) = crate::mam::archive_for_user(
-                        &rt.data,
-                        &rt.domain,
+                    sent_xml = archive_message_best_effort(
+                        &rt,
+                        ctx,
                         &user,
                         protocol::bare(to),
                         &xml,
                         now,
-                    )?;
-                    sent_xml = stamped;
+                    );
                 } else {
                     sent_xml = xml.clone();
                 }
@@ -3677,10 +3713,7 @@ async fn authenticated_transport<S: AsyncRead + AsyncWrite + Unpin>(
                             boolean(&rt.config, &rt.domain, "mam_smart_enable", false),
                         )?
                     {
-                        let (_, stamped) = crate::mam::archive_for_user(
-                            &rt.data, &rt.domain, u, &owner, &xml, now,
-                        )?;
-                        xml = stamped;
+                        xml = archive_message_best_effort(&rt, ctx, u, &owner, &xml, now);
                     }
                     message_phases[2] = recipient_mam_started.elapsed();
                 }
@@ -4053,15 +4086,29 @@ async fn incoming_federated(rt: Runtime, stanza: crate::federation::FederatedSta
                 boolean(&rt.config, &rt.domain, "mam_smart_enable", false),
             )?
         {
-            delivery_xml = crate::mam::archive_for_user(
+            let time = chrono::Utc::now().timestamp_millis() as f64 / 1000.0;
+            delivery_xml = match crate::mam::archive_for_user(
                 &rt.data,
                 &rt.domain,
                 &user,
                 protocol::bare(from),
                 &delivery_xml,
-                chrono::Utc::now().timestamp_millis() as f64 / 1000.0,
-            )?
-            .1;
+                time,
+            ) {
+                Ok((_, stamped)) => stamped,
+                Err(error) => {
+                    // A storage fault must not drop an inbound federated message:
+                    // deliver it unarchived so it still reaches the recipient.
+                    rt.logger.event(
+                        Level::Warn,
+                        "s2s",
+                        None,
+                        "mam-archive-skipped",
+                        &[("err", &sanitized_label(&error))],
+                    );
+                    delivery_xml
+                }
+            };
         }
         let targets = rt.hub.message_targets_for_type(to, typ);
         let mut delivered = 0;

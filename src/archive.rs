@@ -465,10 +465,7 @@ pub fn checkpoint_all(root: &Path) -> Result<usize> {
 /// Retire redo before an atomic snapshot replacement. The old native snapshot
 /// is synced first, so a crash after unlink and before rename retains every
 /// committed record. After rename there is no old redo to resurrect deletions.
-fn prepare_rewrite(p: &Path) -> Result<()> {
-    if recover_redo(p)?.is_none() {
-        return Ok(());
-    }
+fn retire_redo(p: &Path) -> Result<()> {
     std::fs::File::open(p)?.sync_all()?;
     std::fs::remove_file(p.with_extension("rredo"))?;
     std::fs::File::open(p.parent().unwrap())?.sync_all()?;
@@ -478,6 +475,34 @@ fn prepare_rewrite(p: &Path) -> Result<()> {
         .map_err(|_| anyhow!("archive redo cache poisoned"))?
         .remove(p);
     Ok(())
+}
+/// True when the redo journal no longer matches its native baseline after an
+/// external in-place write or replacement. In that state the journal is no
+/// longer authoritative and must not be replayed over the native file.
+fn is_untrusted_redo(error: &anyhow::Error) -> bool {
+    let text = format!("{error:#}");
+    text.contains("archive redo baseline changed in place")
+        || text.contains("archive shorter than redo baseline")
+        || text.contains("missing archive redo baseline")
+        || text.contains("archive redo journal exceeds bound")
+}
+/// Retire redo before an atomic snapshot replacement or with an explicit offline
+/// handoff (storage-checkpoint). A journal whose baseline was externally
+/// rewritten in place can no longer be trusted: because the caller is about to
+/// replace the native file (rewrite) or to hand control of it to a native
+/// writer (checkpoint), the current durably synced native becomes authoritative
+/// and the untrusted journal is retired rather than failing the operation.
+fn prepare_rewrite(p: &Path) -> Result<()> {
+    match recover_redo(p) {
+        Ok(Some(_)) => retire_redo(p),
+        Ok(None) => Ok(()),
+        Err(error) if is_untrusted_redo(&error) => {
+            // The journal no longer matches its baseline. Treat the native file
+            // as authoritative, sync it, and retire the untrusted journal.
+            retire_redo(p)
+        }
+        Err(error) => Err(error),
+    }
 }
 fn scan_unlocked<F: FnMut(Entry) -> Result<()>>(
     root: &Path,
@@ -1011,5 +1036,121 @@ mod redo_rewrite_tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+
+    /// Build an archive large enough to have rolled its redo journal, so the
+    /// baseline is non-empty (`base > 0`) and the anchor guard is meaningful.
+    fn rolled_fixture() -> (tempfile::TempDir, std::path::PathBuf) {
+        let root = tempfile::tempdir().unwrap();
+        // One more than REDO_FRAMES forces a redo rotation at frame 128, which
+        // snapshots the current native length as the new non-empty baseline.
+        for i in 0..=REDO_FRAMES as u64 {
+            append_new(
+                root.path(),
+                "example.org",
+                Some("alice"),
+                "archive",
+                Entry {
+                    id: format!("roll-{i}"),
+                    when: i as f64,
+                    peer: String::new(),
+                    xml: "<message><body>x</body></message>".into(),
+                },
+            )
+            .unwrap();
+        }
+        let path = storage::path(root.path(), "example.org", Some("alice"), "archive")
+            .with_extension("list");
+        // Recovery must see a non-empty baseline (rotation happened).
+        let data = std::fs::read(path.with_extension("rredo")).unwrap();
+        let base = u64::from_le_bytes(data[8..16].try_into().unwrap());
+        assert!(base > 0, "fixture should have rolled a non-empty baseline");
+        (root, path)
+    }
+
+    /// An external writer that rewrote the native archive in place over the
+    /// committed baseline without a handoff leaves the redo journal untrusted.
+    fn corrupt_baseline(path: &std::path::Path) -> u64 {
+        let data = std::fs::read(path.with_extension("rredo")).unwrap();
+        let base = u64::from_le_bytes(data[8..16].try_into().unwrap());
+        let mut native = std::fs::read(path).unwrap();
+        // Flip the trailing bytes of the committed baseline so its anchor changes.
+        let start = (base.saturating_sub(64)) as usize;
+        for i in start..native.len().min(base as usize) {
+            native[i] ^= 0x5a;
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .truncate(false)
+            .open(path)
+            .unwrap();
+        std::io::Write::write_all(&mut file, &native).unwrap();
+        file.sync_all().unwrap();
+        base
+    }
+
+    #[test]
+    fn runtime_append_fails_closed_on_untrusted_redo_baseline() {
+        let (root, path) = rolled_fixture();
+        corrupt_baseline(&path);
+        // A live append must fail closed (not silently overwrite the native
+        // file): the journal no longer matches its baseline.
+        let err = append_new(
+            root.path(),
+            "example.org",
+            Some("alice"),
+            "archive",
+            Entry {
+                id: "post-corruption".into(),
+                when: 100000.,
+                peer: String::new(),
+                xml: "<message><body>new</body></message>".into(),
+            },
+        )
+        .expect_err("live append must fail on an untrusted redo baseline");
+        assert!(
+            is_untrusted_redo(&err),
+            "expected an untrusted-baseline error, got: {err:#}"
+        );
+        // The journal is preserved for explicit offline handoff.
+        assert!(path.with_extension("rredo").exists());
+    }
+
+    #[test]
+    fn offline_checkpoint_retires_untrusted_redo_baseline() {
+        let (root, path) = rolled_fixture();
+        let base = corrupt_baseline(&path);
+        assert!(base > 0);
+        assert!(path.with_extension("rredo").exists());
+        // An external rewrite removed the trusted baseline; an explicit offline
+        // handoff accepts the current synced native as authoritative and retires
+        // the untrusted journal so the archive becomes writable again.
+        let retired = checkpoint_all(root.path()).unwrap();
+        assert_eq!(retired, 1);
+        assert!(
+            !path.with_extension("rredo").exists(),
+            "offline checkpoint must retire the untrusted journal"
+        );
+        // The archive accepts new appends: with the journal retired the current
+        // (now authoritative) native length becomes the fresh baseline.
+        let id = append_new(
+            root.path(),
+            "example.org",
+            Some("alice"),
+            "archive",
+            Entry {
+                id: "after-handoff".into(),
+                when: 200000.,
+                peer: String::new(),
+                xml: "<message><body>new</body></message>".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(id, "after-handoff");
+        // The original baseline tail was externally rewritten, so the native
+        // holds whatever the external writer put there; checkpoint only retires
+        // the journal (handoff), it does not try to re-encode damaged records.
+        // A fresh valid journal is (re)created on the next append.
+        assert!(path.with_extension("rredo").exists());
     }
 }
