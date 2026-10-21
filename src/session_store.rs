@@ -9,7 +9,7 @@ use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     fs::{self, File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -115,7 +115,6 @@ impl Record {
             closed: false,
             close_condition: None,
             cancel: Default::default(),
-            dirty: false,
             durable: None,
         }
     }
@@ -128,20 +127,6 @@ pub(crate) struct Store {
     failed: std::sync::atomic::AtomicBool,
     retired: Mutex<Vec<String>>,
     journals: Mutex<BTreeMap<String, u64>>,
-    // When true, live sessions (with an open transport) do not force a durable
-    // WAL commit on every outbound stanza/ack. Their in-memory queue is flushed
-    // on session state transitions and by a periodic background pass, matching
-    // Prosody's streaming model and avoiding per-message fsync on slow disks.
-    // Offline/hibernating targets always commit durably before delivery.
-    defer_online: std::sync::atomic::AtomicBool,
-    // Serializes durable writers to a specific WAL. The reservation/limit checks
-    // run under `slots` only for a moment, so an fsync on one session's redo
-    // journal never stalls streaming-management commits for every other session.
-    wal: Mutex<HashMap<String, Arc<Mutex<()>>>>,
-    // Serializes long, amortized maintenance passes (aggregate journal
-    // compaction and retired-WAL GC) against each other and against nothing that
-    // holds a per-session `wal` lock, so they cannot deadlock with a commit.
-    maintenance: Mutex<()>,
 }
 fn store(session: &Session) -> Result<Option<Arc<Store>>> {
     session
@@ -161,26 +146,7 @@ pub(crate) fn enable(s: &Session) -> Result<()> {
     }
     Ok(())
 }
-pub(crate) fn checkpoint(s: &mut Session) -> Result<()> {
-    let Some(store) = store(s)? else {
-        return Ok(());
-    };
-    if s.resume_id.is_none() {
-        return Ok(());
-    }
-    if store.defer_online.load(std::sync::atomic::Ordering::SeqCst)
-        && s.sender.is_some()
-        && !s.closed
-    {
-        // Live session: keep the queue and counters in memory; the periodic
-        // flush or the offline transition commits them durably. This mirrors
-        // Prosody's streaming durability and avoids per-message fsync.
-        s.dirty = true;
-        return Ok(());
-    }
-    store.write(s, Some(&s.connection))
-}
-pub(crate) fn checkpoint_durable(s: &mut Session) -> Result<()> {
+pub(crate) fn checkpoint(s: &Session) -> Result<()> {
     if let Some(store) = store(s)?
         && s.resume_id.is_some()
     {
@@ -205,13 +171,6 @@ pub(crate) fn remove(s: &Session) -> Result<()> {
     Ok(())
 }
 impl Store {
-    /// Enable/disable deferred durable commits for live-session streaming state.
-    /// Only affects online outbound/ack checkpoints; offline transitions and
-    /// hibernation always commit durably regardless of this switch.
-    pub fn set_defer_online(&self, value: bool) {
-        self.defer_online
-            .store(value, std::sync::atomic::Ordering::SeqCst);
-    }
     pub fn open(path: &Path) -> Result<(Arc<Self>, Vec<Record>)> {
         fs::create_dir_all(path)?;
         #[cfg(unix)]
@@ -242,9 +201,6 @@ impl Store {
             failed: std::sync::atomic::AtomicBool::new(false),
             retired: Default::default(),
             journals: Default::default(),
-            defer_online: std::sync::atomic::AtomicBool::new(false),
-            wal: Default::default(),
-            maintenance: Mutex::new(()),
         });
         let mut recovered = vec![];
         let mut total = 0usize;
@@ -352,14 +308,6 @@ impl Store {
         store.collect_retired()?;
         Ok((store, recovered))
     }
-    fn wal_lock(&self, id: &str) -> Arc<Mutex<()>> {
-        self.wal
-            .lock()
-            .unwrap()
-            .entry(id.to_string())
-            .or_insert_with(|| Arc::new(Mutex::new(())))
-            .clone()
-    }
     fn write(&self, s: &Session, expected: Option<&str>) -> Result<()> {
         let record = Record::from_session(s)?;
         ensure!(
@@ -369,77 +317,43 @@ impl Store {
         let bytes = serde_json::to_vec(&record)?;
         ensure!(bytes.len() <= SLOT_LIMIT, "stream management slot limit");
         let name = safe_id(&record.resume_id)?;
-        // Reserve the slot (fencing, session and storage limits) atomically under
-        // the short-lived `slots` lock. The durable append/fsync happens under this
-        // session's own `wal` lock afterwards, so slow storage for one session does
-        // not stall commits for every other session.
-        let previous = {
-            let mut slots = self.slots.lock().unwrap();
-            if let Some(expected) = expected {
-                ensure!(
-                    slots
-                        .get(&record.resume_id)
-                        .is_some_and(|v| v.0 == expected),
-                    "retired stream transport"
-                );
-            } else {
-                ensure!(
-                    !slots.contains_key(&record.resume_id)
-                        && !self.retired.lock().unwrap().contains(&record.resume_id),
-                    "duplicate stream token"
-                );
-            }
+        let mut slots = self.slots.lock().unwrap();
+        if let Some(expected) = expected {
             ensure!(
-                slots.len() < SESSION_LIMIT || slots.contains_key(&record.resume_id),
-                "stream management session limit"
+                slots
+                    .get(&record.resume_id)
+                    .is_some_and(|v| v.0 == expected),
+                "retired stream transport"
             );
-            let total: usize = slots.values().map(|v| v.1).sum();
-            let previous = slots.get(&record.resume_id).map_or(0, |v| v.1);
+        } else {
             ensure!(
-                total - previous + bytes.len() <= TOTAL_LIMIT,
-                "stream management storage limit"
+                !slots.contains_key(&record.resume_id)
+                    && !self.retired.lock().unwrap().contains(&record.resume_id),
+                "duplicate stream token"
             );
-            let old = slots.insert(
-                record.resume_id.clone(),
-                (record.connection.clone(), bytes.len()),
-            );
-            old.map(|entry| entry.1).unwrap_or(0)
-        };
-        let result = self.commit(name, Some(&bytes));
-        if result.is_err() {
-            // A failed commit fences the store; restore the map so it stays a
-            // consistent view of the last committed reservation.
-            let mut slots = self.slots.lock().unwrap();
-            slots.remove(&record.resume_id);
-            if previous != 0 {
-                slots.insert(
-                    record.resume_id.clone(),
-                    (record.connection.clone(), previous),
-                );
-            }
         }
-        result
+        ensure!(
+            slots.len() < SESSION_LIMIT || slots.contains_key(&record.resume_id),
+            "stream management session limit"
+        );
+        let total: usize = slots.values().map(|v| v.1).sum();
+        let previous = slots.get(&record.resume_id).map_or(0, |v| v.1);
+        ensure!(
+            total - previous + bytes.len() <= TOTAL_LIMIT,
+            "stream management storage limit"
+        );
+        self.commit(name, Some(&bytes))?;
+        slots.insert(record.resume_id, (record.connection, bytes.len()));
+        Ok(())
     }
     fn remove(&self, id: &str, connection: &str) -> Result<()> {
-        let previous = {
-            let mut slots = self.slots.lock().unwrap();
-            let Some((old_conn, old_size)) = slots.get(id).cloned() else {
-                return Ok(());
-            };
-            if old_conn != connection {
-                return Ok(());
-            }
-            slots.remove(id);
-            old_size
-        };
-        let result = self.commit(safe_id(id)?, None);
-        if result.is_err() {
-            let mut slots = self.slots.lock().unwrap();
-            slots
-                .entry(id.to_string())
-                .or_insert_with(|| (connection.to_string(), previous));
+        let mut slots = self.slots.lock().unwrap();
+        if slots.get(id).is_none_or(|v| v.0 != connection) {
+            return Ok(());
         }
-        result
+        self.commit(safe_id(id)?, None)?;
+        slots.remove(id);
+        Ok(())
     }
     // A journal failure may have reached stable storage. Fence this store rather
     // than allowing an in-memory rollback to overwrite an uncertain commit.
@@ -449,15 +363,9 @@ impl Store {
             !self.failed.load(Ordering::SeqCst),
             "stream management store failed"
         );
-        let _guard = self.wal_lock(id);
-        let _guard = _guard.lock().unwrap();
         let result = self.commit_inner(id, bytes);
-        drop(_guard);
         if result.is_err() {
             self.failed.store(true, Ordering::SeqCst);
-        } else {
-            self.maybe_compact();
-            self.maybe_collect_retired();
         }
         result
     }
@@ -481,7 +389,14 @@ impl Store {
             } else {
                 None
             };
-            let _baseline_frame = frame(true, baseline.as_deref())?;
+            let baseline_frame = frame(true, baseline.as_deref())?;
+            if self.journals.lock().unwrap().values().sum::<u64>()
+                + JOURNAL_MAGIC.len() as u64
+                + baseline_frame.len() as u64
+                > JOURNAL_TOTAL_LIMIT
+            {
+                self.compact_journals()?;
+            }
             self.reset_journal(id, baseline.as_deref())?;
         }
         // Rotation is amortized over at least several small commits. Sync the
@@ -493,6 +408,14 @@ impl Store {
             self.checkpoint_journal(id, old.as_deref())?;
         }
         let frame = frame(false, bytes)?;
+        if self.journals.lock().unwrap().values().sum::<u64>() + frame.len() as u64
+            > JOURNAL_TOTAL_LIMIT
+        {
+            // An aggregate cap prevents many small slots each growing a full
+            // per-slot rotation budget. Compaction is rare and amortized over
+            // hundreds of MiB of durable appends.
+            self.compact_journals()?;
+        }
         let mut journal = private_options().append(true).open(&path)?;
         let new_len = journal.metadata()?.len() + frame.len() as u64;
         journal.write_all(&frame)?;
@@ -513,45 +436,22 @@ impl Store {
         if bytes.is_none() {
             let mut retired = self.retired.lock().unwrap();
             retired.push(id.to_string());
+            let collect = retired.len() >= 64;
+            drop(retired);
+            if collect && self.collect_retired().is_err() {
+                self.failed.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
         }
         Ok(())
     }
-    fn maybe_collect_retired(&self) {
-        // Retired tombstones are collected outside any per-session `wal` lock,
-        // guarded by `maintenance` so distinct teardowns cannot race the rename.
-        let pending = { self.retired.lock().unwrap().len() };
-        if pending < 64 {
-            return;
-        }
-        let _guard = self.maintenance.lock().unwrap();
-        if self.collect_retired().is_err() {
-            self.failed.store(true, std::sync::atomic::Ordering::SeqCst);
-        }
-    }
-    fn maybe_compact(&self) {
-        // Runs outside any per-session `wal` lock so it can never deadlock with
-        // a concurrent commit. Each journal is checkpointed one at a time under
-        // its own `wal` lock, serializing against in-flight appends for that id.
-        let over = self.journals.lock().unwrap().values().sum::<u64>() > JOURNAL_TOTAL_LIMIT;
-        if !over {
-            return;
-        }
-        let _guard = self.maintenance.lock().unwrap();
+    fn compact_journals(&self) -> Result<()> {
         let ids: Vec<String> = self.journals.lock().unwrap().keys().cloned().collect();
         for id in ids {
-            let lock = self.wal_lock(&id);
-            let _session_guard = lock.lock().unwrap();
-            let Ok(snapshot) = replay(&self.root.join(format!("{id}.wal"))) else {
-                return;
-            };
-            let snapshot = match snapshot.as_ref().map(serde_json::to_vec).transpose() {
-                Ok(snapshot) => snapshot,
-                Err(_) => return,
-            };
-            if self.checkpoint_journal(&id, snapshot.as_deref()).is_err() {
-                return;
-            }
+            let snapshot = replay(&self.root.join(format!("{id}.wal")))?;
+            let snapshot = snapshot.as_ref().map(serde_json::to_vec).transpose()?;
+            self.checkpoint_journal(&id, snapshot.as_deref())?;
         }
+        Ok(())
     }
     fn collect_retired(&self) -> Result<()> {
         let mut retired = self.retired.lock().unwrap();

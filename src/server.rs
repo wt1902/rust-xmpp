@@ -892,12 +892,6 @@ pub async fn serve(path: &Path) -> Result<()> {
     } else {
         Hub::default()
     };
-    // Streaming durability policy. Defaults to the strict commit-before-ACK
-    // model; set `smacks_online_durable = false` to defer per-stanza fsync for
-    // live sessions (Prosody's streaming behavior), flushing on offline
-    // transitions and a periodic background pass. Offline/hibernating targets
-    // always commit durably before delivery regardless of this flag.
-    hub.set_defer_online(!boolean(&c, &domain, "smacks_online_durable", true));
     // A persisted, unexpired SM session is still a logical room occupant while
     // its transport is offline. Restore routing before accepting any clients so
     // room traffic queues durably even before that occupant reauthenticates.
@@ -1248,9 +1242,6 @@ pub async fn serve(path: &Path) -> Result<()> {
     let heartbeat_seconds = (number(&c, &domain, "smacks_hibernation_time", 300) / 4).clamp(1, 10);
     let mut heartbeat = tokio::time::interval(Duration::from_secs(heartbeat_seconds));
     let mut heartbeat_task: Option<tokio::task::JoinHandle<()>> = None;
-    let flush_seconds = number(&c, &domain, "smacks_flush_interval", 1).clamp(1, 3600);
-    let mut flush = tokio::time::interval(Duration::from_secs(flush_seconds));
-    let mut flush_task: Option<tokio::task::JoinHandle<()>> = None;
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     let mut hangup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
     loop {
@@ -1283,17 +1274,6 @@ pub async fn serve(path: &Path) -> Result<()> {
                             Ok(())
                         });
                         if result.is_err() { rt.logger.event(Level::Error, "recovery", None, "heartbeat-checkpoint-failed", &[]); }
-                    }));
-                }
-            },
-            _ = flush.tick() => {
-                if flush_task.as_ref().is_none_or(|task| task.is_finished()) {
-                    let rt = runtime.clone();
-                    flush_task = Some(tokio::task::spawn_blocking(move || {
-                        if let Err(_error) = rt.hub.flush_dirty() {
-                            rt.logger.event(Level::Error, "smacks", None,
-                                "deferred-flush-failed", &[("reason", "storage-error")]);
-                        }
                     }));
                 }
             },

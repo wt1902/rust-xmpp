@@ -2,4 +2,3 @@
 *.local.*
 /demo/
 /bin/
-**pycache**

@@ -35,24 +35,12 @@ pub struct Session {
     pub closed: bool,
     pub close_condition: Option<String>,
     pub cancel: Arc<tokio::sync::Notify>,
-    // Set when `defer_online` is enabled and a live session changed its queue or
-    // counters without a durable commit; the periodic flush consumes the flag.
-    pub dirty: bool,
     pub(crate) durable: Option<std::sync::Weak<crate::session_store::Store>>,
 }
 impl Session {
-    /// Persist state before acknowledging client input or exposing output to a
-    /// transport. In deferred-online mode a live session records dirty state and
-    /// is flushed by the background pass; offline transitions persist durably.
-    pub fn checkpoint(&mut self) -> Result<()> {
+    /// Persist state before acknowledging client input or exposing output to a transport.
+    pub fn checkpoint(&self) -> Result<()> {
         crate::session_store::checkpoint(self)
-    }
-    /// Force a durable WAL commit regardless of online-defer mode.
-    pub fn checkpoint_durable(&mut self) -> Result<()> {
-        if self.dirty {
-            self.dirty = false;
-        }
-        crate::session_store::checkpoint_durable(self)
     }
     pub fn mark_handled(&mut self) -> Result<()> {
         ensure!(!self.closed, "session closed");
@@ -187,24 +175,6 @@ pub struct Hub {
     store: Option<Arc<crate::session_store::Store>>,
 }
 impl Hub {
-    /// Persist queued state for live sessions whose online commits were deferred.
-    /// Returns how many sessions were flushed (already durable or offline states
-    /// are skipped). Offline/hibernating sessions commit durably on transition,
-    /// so this pass only bounds the loss window for long-lived live transports.
-    pub fn flush_dirty(&self) -> Result<()> {
-        for session in self.all() {
-            let mut state = session.lock().unwrap();
-            if state.dirty && !state.closed && state.sender.is_some() {
-                state.checkpoint_durable()?;
-            }
-        }
-        Ok(())
-    }
-    pub fn set_defer_online(&self, value: bool) {
-        if let Some(store) = &self.store {
-            store.set_defer_online(value);
-        }
-    }
     pub fn persistent(path: impl AsRef<std::path::Path>) -> Result<Self> {
         let (store, records) = crate::session_store::Store::open(path.as_ref())?;
         let mut sessions = BTreeMap::new();
@@ -225,7 +195,7 @@ impl Hub {
     /// Refresh only connected deadlines; disconnected deadlines never slide.
     pub fn checkpoint_live(&self) -> Result<()> {
         for session in self.all() {
-            let mut state = session.lock().unwrap();
+            let state = session.lock().unwrap();
             if state.sender.is_some() && !state.closed {
                 state.checkpoint()?;
             }
@@ -344,7 +314,6 @@ impl Hub {
             closed: false,
             close_condition: None,
             cancel: Default::default(),
-            dirty: false,
             durable: self.store.as_ref().map(Arc::downgrade),
         }));
         map.insert(jid, s.clone());

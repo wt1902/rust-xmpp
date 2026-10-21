@@ -32,7 +32,6 @@ python3 tests/muc_crash_network.py target/release/rust-xmpp
 python3 tests/sm_restart_network.py target/release/rust-xmpp
 python3 tests/slow_storage_latency_network.py --binary target/release/rust-xmpp --delay-ms 0 25 --rounds 1 --output /tmp/slow-storage-latency.json
 python3 tests/slow_storage_crash_network.py --binary target/release/rust-xmpp --delay-ms 25 --messages 3 --output /tmp/slow-storage-crash.json
-python3 tests/deferred_sm_online_network.py --binary target/release/rust-xmpp
 python3 tests/journal_recovery_sync_network.py --binary target/release/rust-xmpp --output /tmp/journal-recovery-sync.json
 python3 tests/push_latency_network.py --binary target/release/rust-xmpp --recipient hibernating --output /tmp/push-latency.json
 python3 tests/push_latency_network.py --binary target/release/rust-xmpp --recipient offline --output /tmp/push-offline-latency.json

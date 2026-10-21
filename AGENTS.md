@@ -235,7 +235,7 @@ bind2_archive_latency_network.py, archive_edges.rs, session_routing_isolation.rs
 После изменений обновляйте точные границы совместимости и результаты проверки.
 Не перезаписывайте исторические отчёты как будто они относятся к новой сборке.
 В передаваемый ZIP включайте AGENTS.md, workflow, vendor reference, исходники,
-документацию и scripts; исключайте target, demo data, bin, .git, **pycache**, pyc
+документацию и scripts; исключайте target, demo data, bin, .git, __pycache__, pyc
 и секреты. Сохраняйте executable bits shell scripts и проверяйте содержимое ZIP.
 
 ## Durable message IO 0.8.3
@@ -255,10 +255,7 @@ sync каталога с JSON deletions, затем unlink WAL и sync ката�
 Ordinary commit: append + sync_data, потом JSON export без sync. Ошибка export
 после commit не откатывает память; store блокирует дальнейшие записи до recovery.
 Precommit/sync error также блокирует store. Не возвращайте 2 sync на каждый
-checkpoint и не удаляйте redo без checkpoint. Начиная с0.8.4 fsync/append не
-держится под глобальным `Store.slots` lock: короткий lock `slots` только
-резервирует слот, сам commit идёт под per-session `wal` lock; compaction/GC под
-отдельным `maintenance` lock вне per-session lock.
+checkpoint и не удаляйте redo без checkpoint. Общий SM mutex пока сохранён.
 Slot limit 8 MiB, total 256 MiB; WAL rotation 16 MiB плюс один slot, aggregate
 512 MiB. Не допускайте роста каждого из тысяч slots без aggregate cap.
 
@@ -301,26 +298,3 @@ Final binary SHA-256: 8ceb8de3a2d02bc4399b8ae817dff7e3c3fe9bff83dc0c6669b7f19210
 Подробные samples/границы — docs/VALIDATION-0.8.3.md. Checksum и JSON syntax всех frames
 проверяются при SM replay, но Record создаётся только для последнего
 snapshot. Recovery WAL sync до публикации обязателен; EIO fixture защищает это.
-
-## Deferred online durability 0.8.4
-
-0.8.4 убирает глобальную блокировку SM store во время fsync: append+fsync идёт
-под per-session `wal` lock, compaction/GC под отдельным `maintenance` lock.
-Один медленный fsync канала больше не блокирует SM-коммиты остальных сессий
-и не «замораживает» обработку сообщений.
-
-Опция `smacks_online_durable` (default true=strict). При `false` live-сессии
-(sender.is_some()) не делают durable commit на каждый outbound/ack, а помечают
-`Session.dirty`; фоновый проход `smacks_flush_interval` (default1с) и
-offline-переход фиксируют durable через `checkpoint_durable`. Не удаляйте pc-fsync
-гарантию для offline: offline/hibernating цели (sender==None) фиксируются durable
-ДО доставки в любом режиме — критичная регрессия Bob-not-authenticated и отзыв
-токенов/expiry не ослабляются. Strict режим сохраняет pre-ACK durable гарантию и
-все crash-тесты; deferred — Prosody-совместимый low-latency компромисс с
-ограниченным окном потери для online-пиров.
-
-Новые тесты: `tests/deferred_sm_online_network.py` (wire, offline durable до ACK,
-online delivery + flush persist), deferred-тесты в `tests/sm_journal.rs`. Итог
-0.8.4: 336 passed / 11 ignored, crash/latency/recovery зелёные. В этой среде
-`push_latency_network.py` падает на TLS CA `keyUsage` из-за Python3.14 (до
-SM-кода, не связано).
