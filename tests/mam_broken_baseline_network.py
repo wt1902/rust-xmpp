@@ -3,21 +3,22 @@
 
 Usage: python3 tests/mam_broken_baseline_network.py target/release/rust-xmpp
 
-Reproduces the production symptom reported with Monal: the native archive at
+Reproduces the production symptom reported with Monal/Luma: the native archive at
 `data/<host>/archive/<user>.list` no longer matches the anchor recorded in its
 `.rredo` journal ("archive redo baseline changed in place"). On every message the
-previous build drained the session with `connection-closed reason=
-protocol-or-transport-error`, so the client reconnect-looped and its message was
-never delivered.
+previous build drained the session or stalled delivery for seconds, so the client
+timed out MAM and its message was delayed.
 
-The archive store is a durable attribute of delivery, not a prerequisite. This
+Prosody has no `.rredo` sidecar: it simply appends to the native `.list`. This
 test seeds an archive for `load-0`, corrupts its redo baseline offline to force
-exactly that recovery error, then verifies that:
-  * a fresh message is still routed load-0 -> load-1,
+that recovery error, then verifies that:
+  * a fresh message is still routed load-0 -> load-1 quickly,
   * BOTH sessions survive (ping round-trip), no `connection-closed`,
-  * the runtime stays fail-closed (the untrusted journal is NOT silently dropped),
-  * the offline `storage-checkpoint` repair retires the untrusted journal and
-    restores MAM history reads on the now-authoritative native file.
+  * the runtime self-repairs: on the first access it retires the untrusted
+    journal, adopts the synced native as authoritative (exactly what Prosody
+    would treat as the archive), and continues appending on a fresh journal
+    without requiring an offline `storage-checkpoint` handoff,
+  * MAM history reads succeed on the recovered archive.
 """
 
 import argparse
@@ -246,10 +247,6 @@ def run(binary):
                     server.wait()
 
         log_text = (root / "server.log").read_text()
-        skipped = [l for l in log_text.splitlines() if "mam-archive-skipped" in l]
-        assert skipped, (
-            "server did not log the best-effort archive skip (isolation inactive?)"
-        )
         assert not any(
             "connection-closed" in l and "protocol-or-transport-error" in l
             for l in log_text.splitlines()
@@ -258,25 +255,29 @@ def run(binary):
             "unhandled archive fault labelled a session error"
         )
 
-        # Runtime must stay fail-closed: the untrusted journal is preserved.
-        assert sender_archive.with_suffix(".rredo").read_bytes() == damaged_journal, (
-            "runtime dropped the untrusted redo journal instead of failing closed"
+        # Prosody-compatible self-repair: the first access after the corruption
+        # retired the untrusted journal and the archive was appended to on a fresh
+        # journal. No `mam-archive-skipped` should have been logged because the
+        # event delivery succeeded on the recovered native.
+        assert not any("mam-archive-skipped" in l for l in log_text.splitlines())
+
+        # A fresh journal must have replaced the damaged one (the archive kept
+        # accepting records). Its baseline now matches the current native.
+        journal = sender_archive.with_suffix(".rredo")
+        assert journal.exists(), "runtime did not recreate a fresh redo journal"
+        assert journal.read_bytes() != damaged_journal, (
+            "runtime kept the damaged journal instead of retiring it"
+        )
+        fresh = journal.read_bytes()
+        assert len(fresh) >= REDO_HEADER
+        assert fresh[:8] == REDO_MAGIC
+        # The fresh journal is valid: its header digest checks out, so recovery
+        # will accept it as the authoritative pairing with the current native.
+        assert hashlib.sha256(fresh[:64]).digest() == fresh[64:96], (
+            "recreated journal header is not self-consistent"
         )
 
-        # Offline handoff must repair: checkpoint retires the untrusted journal
-        # so the now-authoritative native file becomes a clean one-journal base.
-        result = subprocess.run(
-            [binary, "storage-checkpoint", str(config)],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        assert "Durable native archive handoff:" in result.stdout
-        assert not sender_archive.with_suffix(".rredo").exists(), (
-            "storage-checkpoint did not retire the untrusted redo journal"
-        )
-
-        # After repair MAM history is readable again (endpoint reads now succeed).
+        # MAM history on the recovered, now-authoritative native must serve reads.
         phase3_offset = len((root / "server.log").read_text().splitlines())
         with (root / "server.log").open("a") as log:
             server = None
@@ -291,7 +292,6 @@ def run(binary):
                 alice.available()
                 bob.available()
                 # A MAM query to load-0's own archive must serve history.
-                # Query the bare account JID (not the full resource).
                 alice.send(
                     f"<iq type='set' id='mam' to='load-0@localhost'>"
                     f"<query xmlns='urn:xmpp:mam:2'/>"
@@ -305,8 +305,7 @@ def run(binary):
                     )
                     is None
                 ), ET.tostring(result_iq)
-                # After reconnect the sender archive is fresh (journal was retired);
-                # a new message archives cleanly.
+                # A new message still archives cleanly on the recovered journal.
                 alice.send(
                     f"<message to='{bob.jid}' type='chat' id='post-repair'><body>post-repair</body></message>"
                 )
@@ -322,8 +321,18 @@ def run(binary):
             l for l in post_log if "archive redo baseline changed in place" in l
         ]
         assert not fresh_errors, (
-            "archive fault returned after offline repair:\n" + "\n".join(fresh_errors)
+            "archive fault returned after self-repair:\n" + "\n".join(fresh_errors)
         )
+
+        # Offline handoff stays safe: checkpoint of an already-repaired archive is
+        # idempotent (retires an absent journal) and still reports a handoff.
+        result = subprocess.run(
+            [binary, "storage-checkpoint", str(config)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert "Durable native archive handoff:" in result.stdout
 
 
 def main():

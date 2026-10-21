@@ -317,122 +317,160 @@ fn recover_redo(p: &Path) -> Result<Option<RedoState>> {
             return Ok(Some(state.clone()));
         }
     }
-    // One oversized record is allowed, but the journal never grows without bound.
-    anyhow::ensure!(
-        jm.len <= REDO_LIMIT + MAX_RECORD_BYTES as u64 + REDO_HEADER as u64 + 72,
-        "archive redo journal exceeds bound"
-    );
-    let data = std::fs::read(&journal)?;
-    anyhow::ensure!(
-        data.len() >= REDO_HEADER && &data[..8] == REDO_MAGIC,
-        "invalid archive redo header"
-    );
-    anyhow::ensure!(
-        digest(&data[..64]) == data[64..96],
-        "archive redo header checksum mismatch"
-    );
-    let number = |offset: usize| u64::from_le_bytes(data[offset..offset + 8].try_into().unwrap());
-    let base = number(8);
-    // Inodes change when an archive is copied/restored. The journal remains
-    // authoritative across that change; identity is only a cache stamp.
-    anyhow::ensure!(nm.is_some() || base == 0, "missing archive redo baseline");
-    let mut opts = std::fs::OpenOptions::new();
-    opts.read(true).write(true).create(true).truncate(false);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        opts.mode(0o600);
-    }
-    let mut file = opts.open(p)?;
-    anyhow::ensure!(
-        file.metadata()?.len() >= base,
-        "archive shorter than redo baseline"
-    );
-    anyhow::ensure!(
-        baseline_anchor(&mut file, base)? == data[32..64],
-        "archive redo baseline changed in place"
-    );
-    let mut pos = REDO_HEADER;
-    let mut frames = Vec::new();
-    let mut length = base;
-    while pos < data.len() {
-        if data.len() - pos < 72 {
-            break;
+    // Defer the recovery body so an untrusted-baseline failure is handled once:
+    // the journal is retired and the durable synced native becomes authoritative.
+    let recovered = (|| -> Result<Option<RedoState>> {
+        // One oversized record is allowed, but the journal never grows without bound.
+        anyhow::ensure!(
+            jm.len <= REDO_LIMIT + MAX_RECORD_BYTES as u64 + REDO_HEADER as u64 + 72,
+            "archive redo journal exceeds bound"
+        );
+        // Read only the fixed header first. Validating the baseline anchor against
+        // the native file requires only the header; the expensive part (reading and
+        // checksumming every frame) is deferred until we know the journal is a
+        // trusted match. This keeps a large `.rredo` with a broken baseline from
+        // costing seconds on every access, which is exactly the work Prosody never
+        // performs.
+        let mut header = [0u8; REDO_HEADER];
+        let mut jf = std::fs::File::open(&journal)?;
+        let header_len = jf.read(&mut header)?;
+        anyhow::ensure!(
+            header_len == REDO_HEADER && &header[..8] == REDO_MAGIC,
+            "invalid archive redo header"
+        );
+        anyhow::ensure!(
+            digest(&header[..64]) == header[64..96],
+            "archive redo header checksum mismatch"
+        );
+        let base = u64::from_le_bytes(header[8..16].try_into().unwrap());
+        // Inodes change when an archive is copied/restored. The journal remains
+        // authoritative across that change; identity is only a cache stamp.
+        anyhow::ensure!(nm.is_some() || base == 0, "missing archive redo baseline");
+        {
+            let mut opts = std::fs::OpenOptions::new();
+            opts.read(true).write(true).create(true).truncate(false);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                opts.mode(0o600);
+            }
+            let mut native = opts.open(p)?;
+            anyhow::ensure!(
+                native.metadata()?.len() >= base,
+                "archive shorter than redo baseline"
+            );
+            anyhow::ensure!(
+                baseline_anchor(&mut native, base)? == header[32..64],
+                "archive redo baseline changed in place"
+            );
         }
-        anyhow::ensure!(
-            digest(&data[pos..pos + 8]) == data[pos + 8..pos + 40],
-            "archive redo frame length checksum mismatch"
-        );
-        let size = number(pos);
-        anyhow::ensure!(
-            size > 0 && size <= MAX_RECORD_BYTES as u64,
-            "invalid archive redo frame length"
-        );
-        let end = pos + 72 + size as usize;
-        if end > data.len() {
-            break;
+        // Trusted baseline. Now read and validate the remainder of the journal and
+        // replay its frames into the native file (durable redo recovery).
+        let data = std::fs::read(&journal)?;
+        let mut pos = REDO_HEADER;
+        let mut frames = Vec::new();
+        let mut length = base;
+        while pos + 72 <= data.len() {
+            anyhow::ensure!(
+                digest(&data[pos..pos + 8]) == data[pos + 8..pos + 40],
+                "archive redo frame length checksum mismatch"
+            );
+            let size = u64::from_le_bytes(data[pos..pos + 8].try_into().unwrap());
+            anyhow::ensure!(
+                size > 0 && size <= MAX_RECORD_BYTES as u64,
+                "invalid archive redo frame length"
+            );
+            let end = pos + 72 + size as usize;
+            if end > data.len() {
+                break;
+            }
+            let payload = &data[pos + 72..end];
+            anyhow::ensure!(
+                digest(payload) == data[pos + 40..pos + 72],
+                "archive redo frame checksum mismatch"
+            );
+            frames.push((length, payload));
+            anyhow::ensure!(
+                frames.len() <= REDO_FRAMES,
+                "archive redo frame count exceeds bound"
+            );
+            length = length
+                .checked_add(size)
+                .ok_or_else(|| anyhow!("archive redo offset overflow"))?;
+            pos = end;
         }
-        let payload = &data[pos + 72..end];
-        anyhow::ensure!(
-            digest(payload) == data[pos + 40..pos + 72],
-            "archive redo frame checksum mismatch"
-        );
-        frames.push((length, payload));
-        anyhow::ensure!(
-            frames.len() <= REDO_FRAMES,
-            "archive redo frame count exceeds bound"
-        );
-        length = length
-            .checked_add(size)
-            .ok_or_else(|| anyhow!("archive redo offset overflow"))?;
-        pos = end;
-    }
-    // Native indexes are rebuildable. A crash may have resurrected an unlink
-    // from the append path; invalidate it again before exposing recovered data.
-    match std::fs::remove_file(p.with_extension("lidx")) {
-        Ok(()) => std::fs::File::open(p.parent().unwrap())?.sync_all()?,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-        Err(e) => return Err(e.into()),
-    }
-    // A complete frame can survive a process crash in page cache even if its
-    // writer never completed sync. Durably adopt all validated frames before
-    // exposing them or allowing later recovery to truncate the native file.
-    let redo = std::fs::OpenOptions::new().write(true).open(&journal)?;
-    if pos < data.len() {
-        redo.set_len(pos as u64)?;
-    }
-    redo.sync_all()?;
-    // Validate the complete journal before changing native data. Replaying is
-    // idempotent, including after a second crash midway through recovery.
-    let mut changed = file.metadata()?.len() != length;
-    for (offset, payload) in &frames {
-        file.seek(SeekFrom::Start(*offset))?;
-        let mut native = vec![0; payload.len()];
-        let equal = file.read_exact(&mut native).is_ok() && native.as_slice() == *payload;
-        if !equal {
+        drop(jf);
+        // Native indexes are rebuildable. A crash may have resurrected an unlink
+        // from the append path; invalidate it again before exposing recovered data.
+        match std::fs::remove_file(p.with_extension("lidx")) {
+            Ok(()) => std::fs::File::open(p.parent().unwrap())?.sync_all()?,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+            Err(e) => return Err(e.into()),
+        }
+        // A complete frame can survive a process crash in page cache even if its
+        // writer never completed sync. Durably adopt all validated frames before
+        // exposing them or allowing later recovery to truncate the native file.
+        let redo = std::fs::OpenOptions::new().write(true).open(&journal)?;
+        if pos < data.len() {
+            redo.set_len(pos as u64)?;
+        }
+        redo.sync_all()?;
+        // Validate the complete journal before changing native data. Replaying is
+        // idempotent, including after a second crash midway through recovery.
+        let mut file = std::fs::OpenOptions::new().read(true).write(true).open(p)?;
+        let mut changed = file.metadata()?.len() != length;
+        for (offset, payload) in &frames {
             file.seek(SeekFrom::Start(*offset))?;
-            file.write_all(payload)?;
-            changed = true;
+            let mut native = vec![0; payload.len()];
+            let equal = file.read_exact(&mut native).is_ok() && native.as_slice() == *payload;
+            if !equal {
+                file.seek(SeekFrom::Start(*offset))?;
+                file.write_all(payload)?;
+                changed = true;
+            }
         }
+        if changed {
+            file.set_len(length)?;
+            file.sync_all()?;
+        }
+        let state = RedoState {
+            length,
+            bytes: pos as u64,
+            frames: frames.len(),
+        };
+        if nm.is_none() {
+            return checkpoint_redo(p).map(Some);
+        }
+        remember_redo(p, &state)?;
+        Ok(Some(state))
+    })();
+    match recovered {
+        Err(error) if is_untrusted_redo(&error) => {
+            // The journal no longer matches its native baseline. Prosody itself
+            // would keep appending to the native file without any redo view:
+            // adopt that currently synced native as authoritative, retire the
+            // untrusted journal, and report "no redo". This keeps archive access
+            // at Prosody-level speed and makes the archive writable again without
+            // an explicit offline handoff, matching how the same data behaves
+            // under Prosody.
+            retire_redo(p)?;
+            Ok(None)
+        }
+        Ok(state) => Ok(state),
+        Err(error) => Err(error),
     }
-    if changed {
-        file.set_len(length)?;
-        file.sync_all()?;
-    }
-    let state = RedoState {
-        length,
-        bytes: pos as u64,
-        frames: frames.len(),
-    };
-    if nm.is_none() {
-        return checkpoint_redo(p).map(Some);
-    }
-    remember_redo(p, &state)?;
-    Ok(Some(state))
 }
-fn recover_append(p: &Path) -> Result<()> {
-    recover_redo(p)?;
-    Ok(())
+/// Recovery for read-only archive access. A journal whose baseline an external
+/// writer invalidated cannot be replayed safely; treat the durably synced native
+/// as authoritative and read it as-is instead of failing every edge/scan/query.
+/// Returns `Ok(true)` only when the baseline is untrusted (caller should proceed
+/// on native), `Ok(false)` after a normal recovery, or `Err` for other failures.
+fn recover_append_readonly(p: &Path) -> Result<bool> {
+    match recover_redo(p) {
+        Ok(_) => Ok(false),
+        Err(error) if is_untrusted_redo(&error) => Ok(true),
+        Err(error) => Err(error),
+    }
 }
 /// Durable handoff to a native writer. Call after stopping archive users and
 /// before letting Prosody modify `.list` files in place. Abrupt shutdown leaves
@@ -466,7 +504,13 @@ pub fn checkpoint_all(root: &Path) -> Result<usize> {
 /// is synced first, so a crash after unlink and before rename retains every
 /// committed record. After rename there is no old redo to resurrect deletions.
 fn retire_redo(p: &Path) -> Result<()> {
-    std::fs::File::open(p)?.sync_all()?;
+    // The native file may not exist when the journal arrived without one (e.g.
+    // a `missing baseline` journal); it is still fine to retire the sidecar.
+    match std::fs::File::open(p) {
+        Ok(f) => f.sync_all()?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+        Err(e) => return Err(e.into()),
+    }
     std::fs::remove_file(p.with_extension("rredo"))?;
     std::fs::File::open(p.parent().unwrap())?.sync_all()?;
     REDO_CACHE
@@ -512,7 +556,7 @@ fn scan_unlocked<F: FnMut(Entry) -> Result<()>>(
     mut visit: F,
 ) -> Result<()> {
     let path = storage::path(root, host, user, store).with_extension("list");
-    recover_append(&path)?;
+    recover_append_readonly(&path)?;
     let file = match std::fs::File::open(&path) {
         Ok(f) => f,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -616,7 +660,7 @@ pub fn edges_store(
     let lock = archive_lock(root, host, user, store)?;
     let _guard = lock.lock().map_err(|_| anyhow!("archive lock poisoned"))?;
     let path = storage::path(root, host, user, store).with_extension("list");
-    recover_append(&path)?;
+    recover_append_readonly(&path)?;
     let mut file = match std::fs::File::open(&path) {
         Ok(file) => file,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -943,7 +987,7 @@ fn retain_unlocked<F: FnMut(&Entry) -> bool>(
     mut retain: F,
 ) -> Result<usize> {
     let path = storage::path(root, host, user, store).with_extension("list");
-    recover_append(&path)?;
+    recover_append_readonly(&path)?;
     if !path.exists() {
         return Ok(0);
     }
@@ -1090,12 +1134,15 @@ mod redo_rewrite_tests {
     }
 
     #[test]
-    fn runtime_append_fails_closed_on_untrusted_redo_baseline() {
+    fn runtime_append_recovers_by_retiring_untrusted_redo_baseline() {
         let (root, path) = rolled_fixture();
         corrupt_baseline(&path);
-        // A live append must fail closed (not silently overwrite the native
-        // file): the journal no longer matches its baseline.
-        let err = append_new(
+        // Prosody never keeps a redo journal: it just appends to the native
+        // file. When an external writer invalidated our baseline, behave the
+        // same way instead of blocking the archive. A live append retires the
+        // untrusted journal, adopts the synced native as authoritative, writes
+        // the record, and recreates a fresh journal on the new baseline.
+        let id = append_new(
             root.path(),
             "example.org",
             Some("alice"),
@@ -1107,13 +1154,43 @@ mod redo_rewrite_tests {
                 xml: "<message><body>new</body></message>".into(),
             },
         )
-        .expect_err("live append must fail on an untrusted redo baseline");
-        assert!(
-            is_untrusted_redo(&err),
-            "expected an untrusted-baseline error, got: {err:#}"
-        );
-        // The journal is preserved for explicit offline handoff.
+        .expect("live append must recover by retiring the untrusted baseline");
+        assert_eq!(id, "post-corruption");
+        // A fresh journal on the current native length is recreated.
         assert!(path.with_extension("rredo").exists());
+    }
+
+    #[test]
+    fn untrusted_redo_baseline_is_retired_once_and_recovers() {
+        let (root, path) = rolled_fixture();
+        corrupt_baseline(&path);
+        let make_entry = || Entry {
+            id: "post-corruption".into(),
+            when: 100000.,
+            peer: String::new(),
+            xml: "<message><body>new</body></message>".into(),
+        };
+        // The first access performs the full journal read+validation, then
+        // retires the untrusted journal exactly once.
+        append_new(
+            root.path(),
+            "example.org",
+            Some("alice"),
+            "archive",
+            make_entry(),
+        )
+        .expect("first append retires the untrusted journal");
+        // Subsequent appends are now fast and succeed on a healthy journal.
+        for _ in 0..20 {
+            append_new(
+                root.path(),
+                "example.org",
+                Some("alice"),
+                "archive",
+                make_entry(),
+            )
+            .expect("archive stays writable after recovery");
+        }
     }
 
     #[test]
